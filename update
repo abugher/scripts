@@ -1,0 +1,97 @@
+#!/bin/bash
+# update - Update a Gentoo system.
+#
+# Usage:
+#  update
+#  update <phase index>
+#
+# Written by Aaron Bugher for personal use.
+#
+# LICENSE:
+#
+# Copyright (c) 2012, Florida State University
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice,
+# this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# The views and conclusions contained in the software and documentation are
+# those of the authors and should not be interpreted as representing official
+# policies, either expressed or implied, of the FreeBSD Project.
+#
+# END LICENSE
+
+# This is where the raw output from the individual phases goes.
+LOGDIR='/var/log/system_update'
+
+# This could probably be a 2D array, but it's written and it works.
+PHASE1COM='eix-sync'
+PHASE1DESC="${PHASE1COM}"
+PHASE2COM='emerge -uND --with-bdeps=y world'
+PHASE2DESC="${PHASE2COM}"
+PHASE3COM='emerge --depclean'
+PHASE3DESC="${PHASE3COM}"
+PHASE4COM='revdep-rebuild'
+PHASE4DESC="${PHASE4COM}"
+PHASE5COM='echo -e "-9\nYES\n" | /usr/sbin/etc-update'
+PHASE5DESC='[echo string to discard updates] | etc-update'
+LASTPHASE=5
+
+# This is the phase at which we will start.  This is useful if a phase fails,
+# and you want to try again without repeating previous phases.
+ENTRY_POINT="${1}"
+
+# Identify output from this script with a prefix.
+function output {
+  echo -en "[update] - "
+  echo -e "${1}"
+}
+
+if [ "${ENTRY_POINT}" == "" ]
+then
+  ENTRY_POINT=1
+fi
+
+if ! echo "${ENTRY_POINT}" | grep -q '^[1-5]$'
+then
+  output "Invalid entry point."
+  exit 10;
+fi
+
+for NUM in $(seq "${ENTRY_POINT}" "${LASTPHASE}")
+do
+  DESC="PHASE${NUM}DESC"
+  DESC="${!DESC}"
+  COM="PHASE${NUM}COM"
+  COM="${!COM}"
+
+  output "Phase ${NUM}: ${DESC}" 
+  eval "${COM}" > "${LOGDIR}/phase${NUM}.log" 2>&1
+  RET="${?}"
+
+  if [ "0" != "${RET}" ]
+  then
+    output "$Error:  Phase ${NUM} returned ${RET}.  Exiting."
+    exit "${RET}"
+  fi
+done
+
+output "Success.  Updates are finished."

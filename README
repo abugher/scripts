@@ -1,0 +1,56 @@
+This is a collection of scripts I wrote and use on a regular basis.  Most of
+them are small and technically unimpressive.  I am creating a repository just
+to have a place from which to easily obtain them when migrating to new
+systems, as well as to demonstrate that I can write small, unimpressive bash
+scripts.
+
+Scripts:
+
+  fbak - Quick and dirty backup script.  Before making a change to almost
+  anything (especially anything small), we hit it with fbak to create backup.
+  If (when) a change is made that actually breaks something, it's easy to just
+  restore the most recent backup before the bad change.
+
+  testify - Create a testing copy of a file.  This is a companion piece to
+  fbak.  If you're pretty sure that you're going to break what you're working
+  on, or if having it broken for a few minutes is unacceptable, create a test
+  copy to work on.  
+  
+    testify creates a test copy marked with the date and time, but also
+  creates a symlink with a simpler name.  If you forget about an old testing
+  copy and run testify again, the older testing file stays, and only the
+  symlink gets clobbered.  Finally, testify copies the name of the symlink to
+  the clipboard, so you can just do 'vim [shift+insert]' or similar.
+  
+    When the changes are made and tested, just remember to COPY the symlink
+  over to the live file.  If you move it, you'll rename the symlink instead of
+  copying the contents of its target.  (This script may not fit neatly into
+  everyone's workflow.)
+
+  update - Update a Gentoo system.  This automates the various arcane rituals
+  necessary to bring Gentoo up to date.  On the rare occasion that the entire
+  procedure works, it can be run by a cron job in the middle of the night.
+  This is a big plus on a system where "doing updates" means compiling a bunch
+  of packages - often very large packages like Firefox.  (Even more of a
+  benefit on the kind of old systems where I run Gentoo, where compiling
+  anything takes a soul-killing performance toll.)
+
+  stamp - This is a one-liner, a date invocation.  It's just the way I
+  personally like to see the date and time formatted.
+
+  genpass - generate a temporary password of reasonable strength.
+
+  rtunnel - Sometimes I want SSH access to a machine behind a firewall.
+  Running this script on the machine in question allows me to bounce SSH
+  connections through a server outside the firewall.  Once that works, pretty
+  much anything else can be tunneled through SSH.  I like to have a cronjob
+  launch a screen session containing rtunnel at boot.
+
+  backup_to_tarball - This creates a backup tarball of a live system.  It is
+  not intended to be a perfect backup solution.  I use it on relatively small
+  systems that don't handle any large data, as a quick way to make sure I have
+  a record of the state of the system while it's working properly.  It
+  probably has other use cases.  The main reason the script exists is so that
+  I don't have to remember what files to exclude from tar.  (/dev, /proc, and
+  so forth.)
+
