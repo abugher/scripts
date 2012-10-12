@@ -1,0 +1,106 @@
+#!/bin/bash
+# rsync_incremental
+#
+# Back up using rsync's --link-dest feature.  
+#
+# Written by Aaron Bugher for the FSU Biology Department.
+#
+#
+# LICENSE:
+#
+# Copyright (c) 2012, Florida State University
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice,
+# this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# The views and conclusions contained in the software and documentation are
+# those of the authors and should not be interpreted as representing official
+# policies, either expressed or implied, of the FreeBSD Project.
+#
+# END LICENSE
+#
+#
+# DISCLAIMER:  As is traditional, this bash script is dirty and horrible.  I
+# think it is a passable demonstration of how rsync can be used for
+# kind-of-incremental backups, but I'd think twice before relying on it.
+#
+# USAGE:
+#
+#   rsync_incremental <source> <dest>
+#
+# dest will contain a directory named for the time the backup was taken.  (As
+# more backups are taken, more of these time-directories will accrue.)  The
+# time-directory is the actual destination of the backup.
+#
+# For example, if you backup "/usr", the time-directory will contain a
+# directory named "usr" which should contain identical contents to /usr.
+# HOWEVER, if you backup "/usr/", complete with trailing backslash, the
+# contents of /usr will be deposited directly into the time-directory.  This is
+# a quirk of rsync, not my personal idea of sensible behavior.  Either way
+# should be fine as long as it is used consistently.
+#
+# Run the script on some dummy source/target pairs a few times to get a feel
+# for it.
+
+
+if [ "${#}" -ne "2" ]; then
+  echo -e "Please specify (only) a source and destination." >&2
+  echo -e "  rsync_incremental <source> <dest>" >&2
+  exit 1
+fi
+
+SOURCE_DIR="${1}"
+DEST_DIR="${2}"
+
+NOW=$(date "+%Y-%m-%d.%H:%M:%S")        # Get the time.
+NOW_DIR="${DEST_DIR}/${NOW}"
+read LINKDEST < "${DEST_DIR}/link-dest"
+
+# The scripts I actively use include some sanity checks which are omitted here.
+# They aren't very well done, don't help demonstrate the main concept, and
+# would probably be better implemented outside of the script itself.  Generally
+# it's good to be sure that all the filesystems we'll count on are mounted, and
+# that the script isn't being run multiple times concurrently.
+
+echo -e "Backing up ${SOURCE_DIR} to "${NOW_DIR}":"
+sleep 3
+
+if ! mkdir "${NOW_DIR}"; then
+  echo -e "Could not create new directory:  ${NOW_DIR}" >&2
+  exit 1
+fi
+
+rsync \
+  -axHS \
+  --link-dest="${LINKDEST}" \
+  "${SOURCE_DIR}" \
+  "${NOW_DIR}"
+
+RET="$?"
+
+# Set new link-dest:
+if [ 0 == "${RET}" ]; then
+  echo "../${NOW}" > "${DEST_DIR}"/link-dest
+fi
+
+END_TIME=$(date "+%Y-%m-%d.%H:%M:%S")
+echo -e "Started at ${NOW}\nEnded at ${END_TIME}\nrsync returned:  ${RET}\n" >&2
