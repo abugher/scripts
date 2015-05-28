@@ -103,8 +103,11 @@ EOF
     ' \
     $install_script_pure_file
 
+  # This might be paranoid.  The script gets downloaded over https.  (Trust
+  # Google with root on host system?)  I don't think the script changes much
+  # anyway.
   if ! diff $install_script_pure_file $install_script_real_file; then
-    echo "  Error:  The install script changed.  Get Aaron to review it." >&2
+    echo -e "  Error:  The install script changed.  You may wish to review it, and/or the\n  procedure at:  https://developers.google.com/android/nexus/images" >&2
     exit 1
   fi
 
