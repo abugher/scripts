@@ -1,0 +1,148 @@
+#!/bin/bash
+
+device_code_name='hammerhead'
+device_friendly_name='Nexus 5'
+
+function greet {
+  cat << EOF
+  Update Nexus 5
+
+  I will now download and install the latest stock image for 
+  ${device_friendly_name}, code named ${device_code_name}.
+
+  Does it just hang and say '< waiting for device >'?  Try being root.  You
+  might also need to enable USB debugging on the phone.
+
+    Settings --> Developer --> USB Debugging
+
+  You might have to turn on Developer options, first.
+
+    Settings --> About Phone --> Build Number --> tap a lot
+
+  The phone will prompt you the first time you try to use USB Debugging, so
+  watch the screen and approve.  The install might hang in that case.  Just hit
+  ctl+C and try again.
+
+  I think your bootloader needs to be unlocked.  (One might even hack in a few
+  lines to unlock before and re-lock after.  User would need to confirm at
+  phone.)
+
+EOF
+}
+
+function bye {
+  cat << EOF
+  
+  Success!  (I think.  Look for errors above.)
+
+  The device may take about 5 minutes to boot.  Then, help it find the wifi so
+  it can download your settings, apps, etc.
+EOF
+}
+
+function latest_image_link {
+  # Output URL of latest image, scraped from last entry for this device in the listing.
+
+  image_list_url='https://developers.google.com/android/nexus/images'
+
+  wget \
+    -O - \
+    $image_list_url \
+    2> /dev/null \
+    | grep $device_code_name'.*'factory \
+    | tail -n 1 \
+    | awk -F '"' '{print $2}'
+}
+latest_image_link=$(latest_image_link)
+image_file=$(echo $latest_image_link | sed 's/^.*\///')
+image_dir=$(echo $image_file| sed 's/-factory-[a-z0-9]*\.tgz$//')
+
+function download_latest_image {
+  if test -e $image_file; then
+    echo "  Warning:  Image file already exists.  Skipping download." >&2
+  else
+    echo "  Download begins."
+    wget $latest_image_link
+    echo "  Download complete."
+  fi
+}
+
+
+function unpack_image {
+  echo "  Unpacking image."
+  tar xf $image_file
+  echo "  Image unpacked."
+}
+
+function install_image {
+  echo "  Beginning installation."
+
+  install_script_file='flash-all.sh'
+  install_script_pure_file='flash-all-pure.sh'
+  install_script_real_file='flash-all-real.sh'
+  grep -Ev ^#'|'^\$ $install_script_file > $install_script_pure_file
+  cat > $install_script_real_file << EOF
+fastboot flash bootloader bootloader-hammerhead-*.img
+fastboot reboot-bootloader
+sleep 5
+fastboot flash radio radio-hammerhead-*.img
+fastboot reboot-bootloader
+sleep 5
+fastboot -w update image-hammerhead-*.zip
+EOF
+
+  sed \
+    -i \
+    '
+      s/bootloader-hammerhead-[a-z0-9]*\.img/bootloader-hammerhead-\*\.img/;
+      s/radio-hammerhead-[a-z0-9]*-[0-9\.]*\.img/radio-hammerhead-\*\.img/;
+      s/image-hammerhead-[a-z0-9]*\.zip/image-hammerhead-\*\.zip/;
+    ' \
+    $install_script_pure_file
+
+  if ! diff $install_script_pure_file $install_script_real_file; then
+    echo "  Error:  The install script changed.  Get Aaron to review it." >&2
+    exit 1
+  fi
+
+  # Sometimes you can start adb as the wrong user and get in an unhappy state.
+  # Clear that.
+  adb kill-server
+  adb start-server
+
+  adb reboot bootloader
+
+  # flash-all.sh contents
+  echo "  Flashing bootloader."
+  fastboot flash bootloader bootloader-hammerhead-*.img || exit 1
+  fastboot reboot-bootloader || exit 1
+  sleep 5
+  echo "  Flashing radio."
+  fastboot flash radio radio-hammerhead-*.img || exit 1
+  fastboot reboot-bootloader || exit 1
+  sleep 5
+  echo "  Flashing image."
+  fastboot -w update image-hammerhead-*.zip || exit 1
+
+  echo "  Installation complete."
+}
+
+greet
+cd /tmp/
+download_latest_image || {
+  echo "  Error:  Failed to download image." >&2
+  echo 1
+}
+unpack_image || {
+  echo "  Error:  Failed to unpack image." >&2
+  echo 1
+}
+cd $image_dir || {
+  echo "  Error:  Failed to enter image directory." >&2
+  echo 1
+}
+install_image || {
+  echo "  Error:  Failed to install image." >&2
+  echo 1
+}
+bye
