@@ -54,3 +54,7 @@ Scripts:
   I don't have to remember what files to exclude from tar.  (/dev, /proc, and
   so forth.)
 
+  update_nexus_5 - Update a Nexus 5 phone, connected by USB.  This script
+  downloads the latest image and flashes it.  (It skips the download if you
+  have to start over, but you already downloaded that huge thing.)  With very
+  little hacking, it could probably work for other Nexus and related devices.
