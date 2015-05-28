@@ -7,6 +7,9 @@ function greet {
   cat << EOF
   Update Nexus 5
 
+  This script is tested on Debian.  It requires (at least) packages
+  android-tools-adb and android-tools-fastboot.
+
   I will now download and install the latest stock image for 
   ${device_friendly_name}, code named ${device_code_name}.
 
