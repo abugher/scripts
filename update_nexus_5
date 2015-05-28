@@ -137,18 +137,18 @@ greet
 cd /tmp/
 download_latest_image || {
   echo "  Error:  Failed to download image." >&2
-  echo 1
+  exit 1
 }
 unpack_image || {
   echo "  Error:  Failed to unpack image." >&2
-  echo 1
+  exit 1
 }
 cd $image_dir || {
   echo "  Error:  Failed to enter image directory." >&2
-  echo 1
+  exit 1
 }
 install_image || {
   echo "  Error:  Failed to install image." >&2
-  echo 1
+  exit 1
 }
 bye
