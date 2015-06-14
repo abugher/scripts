@@ -1,0 +1,52 @@
+#!/bin/bash
+# xscreensaver-suxrox
+#
+# This program shows all your xscreensaver hacks, one at a time, and asks for
+# judgement (sux or rox) , then enables or disables the hack.  It should skip
+# any previously judged hacks.
+
+HACK_DIR=/usr/lib/xscreensaver
+XSS_CONF_FILE=$HOME/.xscreensaver
+SUXROXED=$HOME/.xscreensaver-suxroxed
+TAB=$(echo -e "\t")
+
+judge_hack () {
+  hack_name=${1}
+  judgement=${2}
+
+  prefix=' '
+  if test $judgement = 'sux'; then
+    prefix='-'
+  fi
+
+  # Enable or disable hack.
+  sed -i -E "s/^.(.*${TAB}${hack_name} )/${prefix}\\1/" $XSS_CONF_FILE
+
+  # Record that this hack has been judged.
+  echo $hack_name >> $SUXROXED
+}
+
+for hack in $HACK_DIR/*; do 
+  hack_name=$(echo $hack | sed 's/.*\///')
+
+  if ! grep -q "^${hack_name}$" $SUXROXED; then
+    while $hack; do
+      case $(
+        xmessage \
+          -font '-*-terminus-*-*-*-*-32-*-*-*-*-*-*-*' \
+          -print \
+          -buttons again:0,sux:1,rox:2 \
+          "judge"
+      ) in
+        'rox')
+            judge_hack $hack_name rox
+            break
+            ;;
+        'sux')
+            judge_hack $hack_name sux
+            break
+            ;;
+      esac
+    done
+  fi
+done
