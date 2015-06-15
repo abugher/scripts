@@ -44,8 +44,10 @@ for hack in $HACK_DIR/*; do
   fi
 
   # Lauch the hack, then judge.
-  while $hack 2>/dev/null; do
-    read -p "Judge '${hack_name}' ( [s]ux, [r]ox, [a]gain ):  " -n 1 response
+  while true; do
+    echo "Showing '${hack_name}'."
+    $hack 2>/dev/null
+    read -p "Judgement ( [s]ux, [r]ox, [a]gain ):  " -n 1 response
     echo
     case $response in
       'r')
@@ -59,3 +61,5 @@ for hack in $HACK_DIR/*; do
     esac
   done
 done
+
+echo "You have judged all your hacks.  To start over, remove ${SUXROXED} ."
