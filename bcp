@@ -1,0 +1,31 @@
+#!/bin/bash
+# bcp
+# Make a backup copy of  a file.
+
+if [ 1 -ne ${#} ]; then
+  echo -e "Error:  wrong number of arguments." >&2
+  exit 1
+fi
+
+source="${1}"
+
+if ! [ -e "${source}" ]; then
+  echo -e "Error:  source file does not exist." >&2
+  exit 2
+fi
+
+now=$(date "+%F_%H:%M:%S")
+
+destination="${source}.${now}.bak"
+
+if [ -e "${destination}" ]; then
+  echo -e "Error:  destination file already exists." >&2
+  exit 3
+fi
+
+cp -r "${source}" "${destination}"
+
+# It's a backup file.  I don't want it being executed, read by a web server, or
+# otherwise affecting things in any way other than being there in case we need
+# to roll back a change.
+chmod 0000 "${destination}"
