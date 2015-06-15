@@ -26,27 +26,36 @@ judge_hack () {
   echo $hack_name >> $SUXROXED
 }
 
+compliant () {
+  # This might indicate that the thing will quit when you 'q'.
+  hack=$1
+  $hack --help 2>&1 | grep -q 'XScreenSaver .* distribution'
+}
+
 for hack in $HACK_DIR/*; do 
   hack_name=$(echo $hack | sed 's/.*\///')
 
-  if ! grep -q "^${hack_name}$" $SUXROXED; then
-    while $hack; do
-      case $(
-        xmessage \
-          -font '-*-terminus-*-*-*-*-32-*-*-*-*-*-*-*' \
-          -print \
-          -buttons again:0,sux:1,rox:2 \
-          "judge"
-      ) in
-        'rox')
-            judge_hack $hack_name rox
-            break
-            ;;
-        'sux')
-            judge_hack $hack_name sux
-            break
-            ;;
-      esac
-    done
+  # Check that the hack has not been judged, and looks likely to behave.
+  if 
+    grep -q "^${hack_name}$" $SUXROXED ||
+    ! compliant $hack
+  then
+    continue
   fi
+
+  # Lauch the hack, then judge.
+  while $hack 2>/dev/null; do
+    read -p "Judge '${hack_name}' ( [s]ux, [r]ox, [a]gain ):  " -n 1 response
+    echo
+    case $response in
+      'r')
+          judge_hack $hack_name rox
+          break
+          ;;
+      's')
+          judge_hack $hack_name sux
+          break
+          ;;
+    esac
+  done
 done
