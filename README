@@ -62,3 +62,12 @@ Scripts:
   xscreensaver-suxrox - Review and judge ("I like it" or "I don't like it")
   each xscreensaver hack.  Use this to build your list of screensavers for
   random mode.  It might be faster than xscreensaver-demo.
+
+  storage - Very system-specific script to mount encrypted storage.
+
+  tend_storage - Slightly less system-specific pass phrase sharing routine.
+  A user 'escrow' keeps a file on a ramdisk, containing the pass phrase for
+  the encrypted storage.  This happens on multiple systems.  When the script
+  runs (as root), it attempts to SSH to a buddy host, and retrieve the pass
+  phrase file.  On the storage host, it also employs the pass phrase to make
+  sure storage is mounted.
