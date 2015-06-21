@@ -1,0 +1,96 @@
+#!/bin/bash
+# tend_storage
+
+# This program is free software. It comes without any warranty, to the extent
+# permitted by applicable law. You can redistribute it and/or modify it under
+# the terms of the Do What The Fuck You Want To Public License, Version 2, as
+# published by Sam Hocevar. See WTFPL.txt or http://www.wtfpl.net/ for more
+# details.
+
+
+# Launch this script from cron.  Invoke as 's' (symlink) to supply the pass
+# phrase yourself.
+#
+# This script will create a ramdisk if necessary, attempt to populate it with
+# the storage pass phrase, and mount storage if possible.
+#
+# If not running on $STORAGE_HOST, it will not mount storage.
+#
+# This is probably a bad idea.  Rolling your own crypto solutions is pretty
+# much always a bad idea.  This was written by one guy late at night.  It's
+# for entertainment purposes only, like a psychic.
+
+
+                E_USER='escrow'
+          STORAGE_HOST='neuron'
+   STORAGE_MOUNT_POINT='/storage'
+     RAMFS_MOUNT_POINT="/home/${E_USER}/storage_pass_phrase"
+ PASS_PHRASE_FILE_NAME='pass_phrase.txt'
+ PASS_PHRASE_FILE_PATH="${RAMFS_MOUNT_POINT}/${PASS_PHRASE_FILE_NAME}"
+       STORAGE_COMMAND='/usr/local/bin/storage'
+  INIT_STORAGE_COMMAND='s'
+       ERR_MKDIR_RAMFS=1
+       ERR_MOUNT_RAMFS=2
+       ERR_CHOWN_RAMFS=3
+               ERR_SCP=4
+        ERR_CHOWN_FILE=5
+        ERR_CHMOD_FILE=6
+     ERR_MOUNT_STORAGE=7
+
+
+fail() {
+  echo -e "ERROR: ${2}" >&2
+  exit $1
+}
+
+
+# buddy up
+case $(hostname) in
+  neuron)       buddy=synapse ;;
+  *)            buddy=neuron ;;
+esac
+
+# mount ramdisk
+if ! mount | grep -q " $RAMFS_MOUNT_POINT "; then
+  sudo -u $E_USER mkdir -p $RAMFS_MOUNT_POINT \
+    || fail $ERR_MKDIR_RAMFS "Failed to mkdir ${RAMFS_MOUNT_POINT}."
+
+  mount -t ramfs -o size=100m ramfs $RAMFS_MOUNT_POINT \
+    || fail $ERR_MOUNT_RAMFS "Failed to mount ${RAMFS_MOUNT_POINT}."
+
+  chown -R $E_USER $RAMFS_MOUNT_POINT \
+    || fail $ERR_CHOWN_RAMFS "Failed to chown ${RAMFS_MOUNT_POINT}."
+fi
+
+# copy passphrase
+if 
+  test ! -e "${PASS_PHRASE_FILE_PATH}" \
+  && ssh $E_USER@$buddy test -e "'${PASS_PHRASE_FILE_PATH}'"
+then
+  scp $E_USER@$buddy:"'${PASS_PHRASE_FILE_PATH}'" $PASS_PHRASE_FILE_PATH \
+    || fail $ERR_SCP "Failed to scp ${PASS_PHRASE_FILE_PATH}."
+  chown $E_USER $PASS_PHRASE_FILE_PATH \
+    || fail $ERR_CHOWN_FILE "Failed to chown ${PASS_PHRASE_FILE_PATH}."
+  chmod 0400 $PASS_PHRASE_FILE_PATH \
+    || fail $ERR_CHMOD_FILE "Failed to chmod ${PASS_PHRASE_FILE_PATH}."
+fi
+
+# get passphrase from user
+if 
+  test ! -e "${PASS_PHRASE_FILE_PATH}" \
+  && test $INIT_STORAGE_COMMAND = $(echo $0 | sed 's/.*\///g')
+then
+  read -s -p 'Enter pass phrase:  ' pass_phrase
+  echo
+  echo $pass_phrase > $PASS_PHRASE_FILE_PATH
+  unset pass_phrase
+fi
+  
+if 
+  test -e "${PASS_PHRASE_FILE_PATH}" \
+  && test $STORAGE_HOST = $(hostname) \
+  && ! mount | grep -q " $STORAGE_MOUNT_POINT "
+then
+  $STORAGE_COMMAND < "${PASS_PHRASE_FILE_PATH}" \
+    || fail $ERR_MOUNT_STORAGE "Failed to mount storage."
+fi
