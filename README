@@ -71,3 +71,6 @@ Scripts:
   runs (as root), it attempts to SSH to a buddy host, and retrieve the pass
   phrase file.  On the storage host, it also employs the pass phrase to make
   sure storage is mounted.
+
+  notehack - Either resume a notes file or create a new one from a template,
+  then launch an editor on it.  (I use it for nethack notes.)
