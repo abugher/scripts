@@ -17,25 +17,27 @@ backup_file=${backup_dir}/${now}.ab
 # -nosystem:  System settings would be nice, but compatibility is not
 # guaranteed, since the system is being upgraded.
 backup_options="-f $backup_file -apk -all -nosystem -shared"
-shared_backup_options="-f $shared_backup_file -shared"
 
 function main {
   latest_image_link=$(latest_image_link)
   image_file=$(echo $latest_image_link | sed 's/^.*\///')
   image_dir=$(echo $image_file| sed 's/-factory-[a-z0-9]*\.tgz$//')
+  latest_twrp_image_link=$(latest_twrp_image_link)
+  twrp_image_file=$(echo $latest_twrp_image_link | sed 's/^.*\///')
+  start_phone_count=$(count_phones)
 
   cd /tmp/                      || fail "Failed to enter directory:  /tmp"
   mkdir -p ${backup_dir}        || fail "Failed to create backup directory:  ${backup_dir}"
   greet                         || fail "Failed to greet the user."
   cycle_adb                     || fail "Failed to cycle adb."
-  download_latest_image         || fail "Failed to download image."
-  backup_data "application"     || fail "Failed to backup application data."
-  backup_data "shared"          || fail "Failed to backup shared data."
+  download_latest_image         || fail "Failed to download stock image."
+  download_latest_twrp_image    || fail "Failed to download TWRP recovery image."
+  backup_data                   || fail "Failed to backup data."
   unpack_image                  || fail "Failed to unpack image."
-  cd $image_dir                 || fail "Failed to enter image directory."
   install_image                 || fail "Failed to install image."
-  restore_data "application"    || fail "Failed to restore application data."
-  restore_data "shared"         || fail "Failed to restore shared data."
+  install_modified_boot         || fail "Failed to install modified boot volume."
+  install_twrp_image            || fail "Failed to install TWRP recovery image."
+  restore_data                  || fail "Failed to restore application data."
   reboot_phone                  || fail "Failed to reboot."
 
   bye
@@ -72,12 +74,8 @@ function reboot_phone {
 
 
 function backup_data {
-  type=$1
-  eval "backup_options=\$${type}_backup_options"
-  eval "backup_file=\$${type}_backup_file"
-
   while true; do
-    output "Backing up ${type} data to:  ${backup_file}"
+    output "Backing up data to:  ${backup_file}"
     adb backup $backup_options
     file_size=$(stat --printf="%s" $backup_file)
     if test 0 = $file_size; then
@@ -108,11 +106,8 @@ function backup_data {
 
 
 function restore_data {
-  type=$1
-  eval "backup_file=\$${type}_backup_file"
-
   while true; do
-    output "Restoring ${type} data from:  $backup_file"
+    output "Restoring data from:  $backup_file"
     adb restore $backup_file
     output "Warning:  I can't verify success.  (This is normal.)"
     output "Warning:  I need your judgement on whether to continue."
@@ -171,10 +166,19 @@ function greet {
 |   You will install any unapproved apps you use.
 |
 |   You will re-enable USB debugging.
+|
+|   I will install a modified boot volume with selinux-compatible su, or somesuch.
+|
+|   I will install TWRP recovery.
+|
+|   You will answer a prompt in TWRP to allow modification of system volume.
+|
+|   You will hit "Reboot", then "System", in TWRP.
+|
+|   You will accept the offer from TWRP to install SuperSU and root the phone.
 |   
 |   I will restore application and shared data to the phone.  
-|   
-|   I will reboot the phone.
+|
 | 
 EOF
 
@@ -206,9 +210,32 @@ function latest_image_link {
 }
 
 
+function latest_twrp_image_link {
+  # Output URL of latest image, scraped from last entry for this device in the listing.
+
+  image_list_url='https://dl.twrp.me/hammerhead/'
+
+  wget $image_list_url -O - 2>/dev/null \
+    | awk -F '"' '/href.*dl\.twrp\.me/ {print $2}' \
+    | head -n 1 \
+    | sed 's/\.html$//'
+}
+
+
+function download_latest_twrp_image {
+  if test -e $twrp_image_file; then
+    output "Warning:  TWRP image file already exists.  Skipping download."
+  else
+    output "TWRP download begins."
+    wget --referer $latest_twrp_image_link $latest_twrp_image_link
+    output "TWRP download complete."
+  fi
+}
+
+
 function download_latest_image {
   if test -e $image_file; then
-    output "Warning:  Image file already exists.  Skipping download." >&2
+    output "Warning:  Image file already exists.  Skipping download."
   else
     output "Download begins."
     wget $latest_image_link
@@ -235,6 +262,8 @@ function unpack_image {
 
 
 function install_image {
+  cd $image_dir || fail "Failed to enter image directory."
+
   output "Beginning installation."
 
   install_script_file='flash-all.sh'
@@ -282,11 +311,56 @@ EOF
   output "Flashing image."
   fastboot -w update image-hammerhead-*.zip || fail "Failed to flash image."
 
-  output "Installation complete.  The first boot should take about five minutes."
+  output "Installation complete.  The first boot should take about ten minutes."
   output "Re-enable USB debugging and wait until all apps have updated."
   output "(Watch My Apps in the Play Store for progress.)"
   output "Then press Enter to continue."
   read
+
+  cd - || fail "Failed to return from image directory."
+}
+
+
+function install_modified_boot {
+  output "Installing modified boot volume."
+
+  adb reboot-bootloader || fail "Failed to reboot to bootloader."
+
+  fastboot flash boot ~/images/nexus5/modified_boot_for_selinux_compatible_su/boot.img || fail "Failed to flash modified boot."
+
+  output "Installation of modified boot volume successful."
+}
+
+
+function install_twrp_image {
+  output "Beginning TWRP recovery image installation."
+
+  fastboot flash recovery $twrp_image_file || fail "Failed to flash twrp image:  ${twrp_image_file}"
+
+  output "TWRP recovery image installation successful."
+
+  fastboot reboot || fail "Failed to fastboot reboot."
+  wait_for_phone
+  adb reboot recovery || fail "Failed to reboot to recovery."
+
+  output "Please answer the prompt to allow modification of system volume."
+  output "Then hit \"Reboot\", then \"System\"."
+  output "When prompted, accept the offer to install SuperSu."
+}
+
+
+function wait_for_phone {
+  output "Waiting for phone..."
+  while test $(count_phones) -lt $start_phone_count; do
+    sleep 1
+    output "..."
+  done
+  output "Phone is back."
+}
+
+
+function count_phones {
+   echo $(( $(adb devices | wc -l) - 2 ))
 }
 
 
