@@ -8,46 +8,170 @@
 
 device_code_name='hammerhead'
 device_friendly_name='Nexus 5'
+application_backup_file=~/backup/aaron-phone/${now}_application-data.ab
+application_backup_options="-f $application_backup_file -all"
+shared_backup_file=~/backup/aaron-phone/${now}_shared-data.ab
+shared_backup_options="-f $shared_backup_file -shared"
+
+function main {
+  latest_image_link=$(latest_image_link)
+  image_file=$(echo $latest_image_link | sed 's/^.*\///')
+  image_dir=$(echo $image_file| sed 's/-factory-[a-z0-9]*\.tgz$//')
+
+  cd /tmp/                      || fail "Failed to enter directory:  /tmp"
+  greet                         || fail "Failed to greet the user."
+  cycle_adb                     || fail "Failed to cycle adb."
+#  download_latest_image         || fail "Failed to download image."
+  backup_data "application"     || fail "Failed to backup application data."
+  backup_data "shared"          || fail "Failed to backup shared data."
+#  unpack_image                  || fail "Failed to unpack image."
+#  cd $image_dir                 || fail "Failed to enter image directory."
+#  install_image                 || fail "Failed to install image."
+  restore_data "application"    || fail "Failed to restore application data."
+  restore_data "shared"         || fail "Failed to restore shared data."
+
+  bye
+}
+
+
+function output {
+  echo -e "| ${1}"
+}
+
+
+function error_output {
+  echo -e "| ERROR:  ${1}" >&2
+}
+
+
+function fail {
+  error_output $1
+  exit 1
+}
+
+
+function prompt {
+  # Clear stdin.
+  while read -r -t 0; do read -r; done
+  read -p "| ${1}  " response
+}
+
+
+function backup_data {
+  type=$1
+  eval "backup_options=\$${type}_backup_options"
+  eval "backup_file=\$${type}_backup_file"
+
+  while true; do
+    output "Backing up ${type} data."
+    adb backup $backup_options
+    file_size=$(stat --printf="%s" $backup_file)
+    if test 0 = $file_size; then
+      output "Warning:  That backup was empty."
+      output "Warning:  Use the phone's back button to quit the backup if still running."
+      prompt "Try again, Quit, or Continue?  [T,q,c]"
+      case "${response}" in
+        't')
+          continue
+          ;;
+        'q')
+          exit
+          ;;
+        'c')
+          break
+          ;;
+        *)
+          continue
+          ;;
+      esac
+    else
+      break
+    fi
+  done
+
+  output "Backup successful."
+}
+
+
+function restore_data {
+  type=$1
+  eval "backup_file=\$${type}_backup_file"
+
+  while true; do
+    output "Restoring ${type} data."
+    adb restore $backup_file
+    output "Warning:  I can't verify success.  (This is normal.)"
+    output "Warning:  I need your judgement on whether to continue."
+    prompt "Try again, Quit, or Continue?  [t,q,C]"
+    case "${response}" in
+      't')
+        continue
+        ;;
+      'q')
+        exit
+        ;;
+      'c')
+        break
+        ;;
+      *)
+        break
+        ;;
+    esac
+  done
+
+  output "Restore successful."
+}
+
 
 function greet {
   cat << EOF
-  Update Nexus 5
-
-  This script is tested on Debian.  It requires (at least) packages
-  android-tools-adb and android-tools-fastboot.
-
-  I will now download and install the latest stock image for 
-  ${device_friendly_name}, code named ${device_code_name}.
-
-  Does it just hang and say '< waiting for device >'?  Try being root.  You
-  might also need to enable USB debugging on the phone.
-
-    Settings --> Developer --> USB Debugging
-
-  You might have to turn on Developer options, first.
-
-    Settings --> About Phone --> Build Number --> tap a lot
-
-  The phone will prompt you the first time you try to use USB Debugging, so
-  watch the screen and approve.  The install might hang in that case.  Just hit
-  ctl+C and try again.
-
-  I think your bootloader needs to be unlocked.  (One might even hack in a few
-  lines to unlock before and re-lock after.  User would need to confirm at
-  phone.)
-
+| Requirements:
+|
+|   Your bootloader must be unlocked.
+|
+|   adb and fastboot must be available.  On Debian Jessie, get these packages:
+|     android-tools-adb
+|     android-tools-fastboot
+|
+|   Developer options must be enabled:
+|     Settings --> About Phone --> Build Number --> tap a lot
+|
+|   USB debugging must be enabled:
+|     Settings --> Developer --> USB Debugging
+|
+| Itinerary:
+| 
+|   I will download the latest stock image for ${device_friendly_name}, code
+|   named ${device_code_name}.  
+|   
+|   I will backup application and shared data from the phone.
+|   
+|   I will install the image.  
+|   
+|   You will give the phone wifi and google credentials.  
+|   
+|   The phone will restore your apps.  This will take a while.
+|
+|   You will install any unapproved apps you use.
+|   
+|   I will restore application and shared data to the phone.  
+|   
+|   I will reboot the phone.
+| 
 EOF
+
+  
 }
+
 
 function bye {
   cat << EOF
   
-  Success!  (I think.  Look for errors above.)
-
-  The device may take about 5 minutes to boot.  Then, help it find the wifi so
-  it can download your settings, apps, etc.
+  Success!  Your phone should be up to date, and your data and settings should
+  be restored.
 EOF
 }
+
 
 function latest_image_link {
   # Output URL of latest image, scraped from last entry for this device in the listing.
@@ -62,29 +186,38 @@ function latest_image_link {
     | tail -n 1 \
     | awk -F '"' '{print $2}'
 }
-latest_image_link=$(latest_image_link)
-image_file=$(echo $latest_image_link | sed 's/^.*\///')
-image_dir=$(echo $image_file| sed 's/-factory-[a-z0-9]*\.tgz$//')
+
 
 function download_latest_image {
   if test -e $image_file; then
-    echo "  Warning:  Image file already exists.  Skipping download." >&2
+    output "Warning:  Image file already exists.  Skipping download." >&2
   else
-    echo "  Download begins."
+    output "Download begins."
     wget $latest_image_link
-    echo "  Download complete."
+    output "Download complete."
   fi
 }
 
 
-function unpack_image {
-  echo "  Unpacking image."
-  tar xf $image_file
-  echo "  Image unpacked."
+function cycle_adb {
+  output "Killing adb."
+  # Sometimes you can start adb as the wrong user and get in an unhappy state.
+  # Clear that.
+  adb kill-server
+  output "Starting adb."
+  adb start-server
 }
 
+
+function unpack_image {
+  output "Unpacking image."
+  tar xf $image_file
+  output "Image unpacked."
+}
+
+
 function install_image {
-  echo "  Beginning installation."
+  output "Beginning installation."
 
   install_script_file='flash-all.sh'
   install_script_pure_file='flash-all-pure.sh'
@@ -113,48 +246,27 @@ EOF
   # Google with root on host system?)  I don't think the script changes much
   # anyway.
   if ! diff $install_script_pure_file $install_script_real_file; then
-    echo -e "  Error:  The install script changed.  You may wish to review it, and/or the\n  procedure at:  https://developers.google.com/android/nexus/images\n  ...then edit this script appropriately." >&2
-    exit 1
+    error_output "The install script changed.  You may wish to review it, and/or the\n  procedure at:  https://developers.google.com/android/nexus/images\n  ...then edit this script appropriately."
+    return 1
   fi
-
-  # Sometimes you can start adb as the wrong user and get in an unhappy state.
-  # Clear that.
-  adb kill-server
-  adb start-server
 
   adb reboot bootloader
 
   # flash-all.sh contents
-  echo "  Flashing bootloader."
-  fastboot flash bootloader bootloader-hammerhead-*.img || exit 1
-  fastboot reboot-bootloader || exit 1
+  output "Flashing bootloader."
+  fastboot flash bootloader bootloader-hammerhead-*.img || fail "Failed to flash bootloader."
+  fastboot reboot-bootloader || fail "Failed to reboot to bootloader."
   sleep 5
-  echo "  Flashing radio."
-  fastboot flash radio radio-hammerhead-*.img || exit 1
-  fastboot reboot-bootloader || exit 1
+  output "Flashing radio."
+  fastboot flash radio radio-hammerhead-*.img || fail "Failed to flash radio."
+  fastboot reboot-bootloader || fail "Failed to reboot to bootloader."
   sleep 5
-  echo "  Flashing image."
-  fastboot -w update image-hammerhead-*.zip || exit 1
+  output "Flashing image."
+  fastboot -w update image-hammerhead-*.zip || fail "Failed to flash image."
 
-  echo "  Installation complete."
+  output "Installation complete.  When all apps are installed, press enter."
+  read
 }
 
-greet
-cd /tmp/
-download_latest_image || {
-  echo "  Error:  Failed to download image." >&2
-  exit 1
-}
-unpack_image || {
-  echo "  Error:  Failed to unpack image." >&2
-  exit 1
-}
-cd $image_dir || {
-  echo "  Error:  Failed to enter image directory." >&2
-  exit 1
-}
-install_image || {
-  echo "  Error:  Failed to install image." >&2
-  exit 1
-}
-bye
+
+main
