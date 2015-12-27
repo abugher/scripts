@@ -6,12 +6,17 @@
 # published by Sam Hocevar. See WTFPL.txt or http://www.wtfpl.net/ for more
 # details.
 
+now=$(date "+%Y-%m-%d_%H:%M:%S")
 device_code_name='hammerhead'
 device_friendly_name='Nexus 5'
-now=$(date "+%Y-%m-%d_%H:%M:%S")
-application_backup_file=~/backup/aaron-phone/${now}_application-data.ab
-application_backup_options="-f $application_backup_file -all"
-shared_backup_file=~/backup/aaron-phone/${now}_shared-data.ab
+backup_dir=~/backup/aaron-phone
+backup_file=${backup_dir}/${now}.ab
+# -apk:  Google backs up play store apk's, not out-of-band.  No
+# -out-of-band-apk option available.
+# -all:  This just specifies "all packages" as the target.
+# -nosystem:  System settings would be nice, but compatibility is not
+# guaranteed, since the system is being upgraded.
+backup_options="-f $backup_file -apk -all -nosystem -shared"
 shared_backup_options="-f $shared_backup_file -shared"
 
 function main {
@@ -20,16 +25,18 @@ function main {
   image_dir=$(echo $image_file| sed 's/-factory-[a-z0-9]*\.tgz$//')
 
   cd /tmp/                      || fail "Failed to enter directory:  /tmp"
+  mkdir -p ${backup_dir}        || fail "Failed to create backup directory:  ${backup_dir}"
   greet                         || fail "Failed to greet the user."
   cycle_adb                     || fail "Failed to cycle adb."
-#  download_latest_image         || fail "Failed to download image."
+  download_latest_image         || fail "Failed to download image."
   backup_data "application"     || fail "Failed to backup application data."
   backup_data "shared"          || fail "Failed to backup shared data."
-#  unpack_image                  || fail "Failed to unpack image."
-#  cd $image_dir                 || fail "Failed to enter image directory."
-#  install_image                 || fail "Failed to install image."
+  unpack_image                  || fail "Failed to unpack image."
+  cd $image_dir                 || fail "Failed to enter image directory."
+  install_image                 || fail "Failed to install image."
   restore_data "application"    || fail "Failed to restore application data."
   restore_data "shared"         || fail "Failed to restore shared data."
+  reboot_phone                  || fail "Failed to reboot."
 
   bye
 }
@@ -55,6 +62,12 @@ function prompt {
   # Clear stdin.
   while read -r -t 0; do read -r; done
   read -p "| ${1}  " response
+}
+
+
+function reboot_phone {
+  output "Rebooting phone."
+  adb reboot
 }
 
 
@@ -140,6 +153,8 @@ function greet {
 |   USB debugging must be enabled:
 |     Settings --> Developer --> USB Debugging
 |
+|   The phone must be connected to this host by USB.
+|
 | Itinerary:
 | 
 |   I will download the latest stock image for ${device_friendly_name}, code
@@ -154,6 +169,8 @@ function greet {
 |   The phone will restore your apps.  This will take a while.
 |
 |   You will install any unapproved apps you use.
+|
+|   You will re-enable USB debugging.
 |   
 |   I will restore application and shared data to the phone.  
 |   
@@ -265,7 +282,10 @@ EOF
   output "Flashing image."
   fastboot -w update image-hammerhead-*.zip || fail "Failed to flash image."
 
-  output "Installation complete.  When all apps are installed, press enter."
+  output "Installation complete.  The first boot should take about five minutes."
+  output "Re-enable USB debugging and wait until all apps have updated."
+  output "(Watch My Apps in the Play Store for progress.)"
+  output "Then press Enter to continue."
   read
 }
 
