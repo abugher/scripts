@@ -8,6 +8,7 @@
 
 device_code_name='hammerhead'
 device_friendly_name='Nexus 5'
+now=$(date "+%Y-%m-%d_%H:%M:%S")
 application_backup_file=~/backup/aaron-phone/${now}_application-data.ab
 application_backup_options="-f $application_backup_file -all"
 shared_backup_file=~/backup/aaron-phone/${now}_shared-data.ab
@@ -63,7 +64,7 @@ function backup_data {
   eval "backup_file=\$${type}_backup_file"
 
   while true; do
-    output "Backing up ${type} data."
+    output "Backing up ${type} data to:  ${backup_file}"
     adb backup $backup_options
     file_size=$(stat --printf="%s" $backup_file)
     if test 0 = $file_size; then
@@ -98,7 +99,7 @@ function restore_data {
   eval "backup_file=\$${type}_backup_file"
 
   while true; do
-    output "Restoring ${type} data."
+    output "Restoring ${type} data from:  $backup_file"
     adb restore $backup_file
     output "Warning:  I can't verify success.  (This is normal.)"
     output "Warning:  I need your judgement on whether to continue."
@@ -166,9 +167,9 @@ EOF
 
 function bye {
   cat << EOF
-  
-  Success!  Your phone should be up to date, and your data and settings should
-  be restored.
+| 
+| Success!  Your phone should be up to date, and your data and settings should
+| be restored.
 EOF
 }
 
