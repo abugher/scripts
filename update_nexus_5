@@ -31,7 +31,7 @@ function main {
 
   cd /tmp/                                      || fail "Failed to enter directory:  /tmp"
   mkdir -p ${backup_dir}                        || fail "Failed to create backup directory:  ${backup_dir}"
-  greet                                         || fail "Failed to greet the user."
+#  greet                                         || fail "Failed to greet the user."
   cycle_adb                                     || fail "Failed to cycle adb."
 
   start_version=$(adb shell getprop ro.build.version.release)
@@ -41,13 +41,13 @@ function main {
 
   download_latest_image                         || fail "Failed to download stock image."
   download_latest_twrp_image                    || fail "Failed to download TWRP recovery image."
-  backup_data                                   || fail "Failed to backup data."
-  unpack_image                                  || fail "Failed to unpack image."
-  reboot_to_fastboot                            || fail "Failed to reboot to fastboot."
-  install_image                                 || fail "Failed to install image."
+#  backup_data                                   || fail "Failed to backup data."
+#  unpack_image                                  || fail "Failed to unpack image."
+#  reboot_to_fastboot                            || fail "Failed to reboot to fastboot."
+#  install_image                                 || fail "Failed to install image."
 
-  output "Once you provide wifi and Google credentials, Google should start restoring apps."
-  prompt "When Google finishes restoring apps and USB debugging is enabled, press Enter to continue."
+#  output "Once you provide wifi and Google credentials, Google should start restoring apps."
+#  prompt "When Google finishes restoring apps and USB debugging is enabled, press Enter to continue."
 
   reboot_to_fastboot                            || fail "Failed to reboot to fastboot."
   install_modified_boot                         || fail "Failed to install modified boot volume."
@@ -401,8 +401,9 @@ function wait_for_phone {
   output "Waiting for phone..."
   phone_count=$(count_phones)
   while test $phone_count -lt $start_phone_count; do
-    sleep 1
     output "... $phone_count / $start_phone_count devices detected."
+    sleep 1
+    phone_count=$(count_phones)
   done
   output "Phone is back."
 }
