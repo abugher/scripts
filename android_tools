@@ -37,35 +37,35 @@ alias fail='{ read message; error_output "${message}"; return 1; } <<<'
 
 
 function reboot_from_adb_to_adb {
-  output                        "Rebooting phone."
+  output                        "Rebooting phone from adb to adb."
   adb reboot                    || fail "Failed to reboot from adb to adb."
   wait_for_adb
 }
 
 
 function reboot_from_adb_to_fastboot {
-  output                        "Rebooting to fastboot."
+  output                        "Rebooting phone from adb to fastboot."
   adb reboot-bootloader         || fail "Failed to reboot from adb to fastboot."
   wait_for_fastboot
 }
 
 
 function reboot_from_adb_to_recovery {
-  output                        "Rebooting to recovery."
+  output                        "Rebooting phone from adb to recovery."
   adb reboot recovery           || fail "Failed to reboot from adb to recovery."
   prompt                        "When the phone has rebooted to recovery, press Enter to continue."
 }
 
 
 function reboot_from_fastboot_to_adb {
-  output                        "Rebooting phone."
+  output                        "Rebooting phone from fastboot to adb."
   fastboot reboot               || fail "Failed to reboot from fastboot to adb."
   wait_for_adb
 }
 
 
 function reboot_from_fastboot_to_fastboot {
-  output                        "Rebooting to fastboot."
+  output                        "Rebooting phone from fastboot to fastboot."
   fastboot reboot-bootloader    || fail "Failed to reboot from fastboot to fastboot."
   wait_for_fastboot
 }
@@ -361,6 +361,8 @@ function install_twrp_image {
   fastboot flash recovery $twrp_image_file || fail "Failed to flash twrp image:  ${twrp_image_file}"
 
   output "TWRP recovery image installation successful."
+  output "If SuperSU was not previously installed, you should be prompted to install it when the phone boots."
+  prompt "Hit Enter to acknowledge."
 }
 
 
