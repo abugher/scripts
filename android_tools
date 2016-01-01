@@ -361,7 +361,8 @@ function install_twrp_image {
   fastboot flash recovery $twrp_image_file || fail "Failed to flash twrp image:  ${twrp_image_file}"
 
   output "TWRP recovery image installation successful."
-  output "If SuperSU was not previously installed, you should be prompted to install it when the phone boots."
+  output "If the SuperSU app was not previously installed, you should be prompted to"
+  output "install it when the phone boots."
   prompt "Hit Enter to acknowledge."
 }
 
@@ -394,6 +395,7 @@ function wait_for_adb {
   while 
     boot_completed=$(
       adb shell getprop sys.boot_completed \
+        2>/dev/null \
         | sed 's/[^0-9]//g'
     )
     ! test "${boot_completed}" = '1'
