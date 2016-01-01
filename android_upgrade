@@ -9,68 +9,27 @@
 source android_tools
 
 function main {
-  latest_image_link=$(latest_image_link)
-  image_file=$(echo $latest_image_link | sed 's/^.*\///')
-  image_dir=$(echo $image_file| sed 's/-factory-[a-z0-9]*\.tgz$//')
-  latest_twrp_image_link=$(latest_twrp_image_link)
-  twrp_image_file=$(echo $latest_twrp_image_link | sed 's/^.*\///')
+  test 1 -eq $start_phone_count         || fail "I expect one device, but found ${start_phone_count} (${start_adb_count} adb and ${start_fastboot_count} fastboot)."
 
-  cd /tmp/                                      || fail "Failed to enter directory:  /tmp"
-  mkdir -p ${backup_dir}                        || fail "Failed to create backup directory:  ${backup_dir}"
-  greet                                         || fail "Failed to greet the user."
-  cycle_adb                                     || fail "Failed to cycle adb."
+  greet                                 || fail "Failed to greet the user."
 
-  # Get phone count after cycle_adb, otherwise lines about "starting daemon"
-  # throw off the count.
-  start_adb_count=$(count_adb_devices)
-  start_fastboot_count=$(count_fastboot_devices)
-  start_phone_count=$(( $start_adb_count + $start_fastboot_count ))
+  backup_data                           || fail "Failed to backup data."
 
-  test 1 -eq $start_phone_count                 || fail "I expect one device, but found ${start_phone_count} (${start_adb_count} adb and ${start_fastboot_count} fastboot)."
+  download_latest_stock_image           || fail "Failed to download stock image."
+  download_latest_twrp_image            || fail "Failed to download TWRP recovery image."
 
-  if test 1 -eq $start_fastboot_count; then
-    reboot_from_fastboot_to_adb                 || fail "Failed to reboot from fastboot to adb."
-    wait_for_adb
-  fi
-
-  start_version=$(adb shell getprop ro.build.version.release)
-  start_major_version=$(echo $start_version | sed 's/\..*//g')
-
-  echo $start_major_version | grep -q '^[0-9]$' || fail "Failed to ascertain starting version."
-
-  backup_data                                   || fail "Failed to backup data."
-
-  download_latest_image                         || fail "Failed to download stock image."
-  download_latest_twrp_image                    || fail "Failed to download TWRP recovery image."
-
-  unpack_image                                  || fail "Failed to unpack image."
-  reboot_from_adb_to_fastboot                   || fail "Failed to reboot from adb to fastboot."
-  install_image                                 || fail "Failed to install image."
+  unpack_image                          || fail "Failed to unpack image."
+  install_image                         || fail "Failed to install image."
 
   output "Once you provide wifi and Google credentials, Google should start restoring apps."
   prompt "When Google finishes restoring apps and USB debugging is enabled, press Enter to continue."
 
-  reboot_from_adb_to_fastboot                   || fail "Failed to reboot from adb to fastboot."
-  install_modified_boot                         || fail "Failed to install modified boot volume."
-  install_twrp_image                            || fail "Failed to install TWRP recovery image."
+  install_modified_boot                 || fail "Failed to install modified boot volume."
+  install_twrp_image                    || fail "Failed to install TWRP recovery image."
 
-  reboot_from_fastboot_to_adb                   || fail "Failed to reboot from fastboot to adb."
-  wait_for_adb
-  reboot_from_adb_to_recovery                   || fail "Failed to reboot from adb to recovery."
-
-  prompt "Accept the proposal to modify the system volume, then hit Enter."
-  prompt "Hit \"Reboot\", then \"System\", then come back and hit Enter."
-  prompt "Accept the proposal to root the phone, then come back and hit Enter."
-
-  wait_for_adb
-
-  output "Give it a chance to finish booting.  (30s)"
-  sleep 30
-
-  restore_data                                  || fail "Failed to restore application data."
-  reboot_from_adb_to_adb                        || fail "Failed to reboot."
-
-  bye
+  initialize_twrp                       || fail "Failed to initialize TWRP."
+  restore_data                          || fail "Failed to restore application data."
+  output                                "Success!"
 }
 
 

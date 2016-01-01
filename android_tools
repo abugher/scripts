@@ -8,13 +8,12 @@
 
 shopt -s expand_aliases
 
-now=$(date "+%Y-%m-%d_%H:%M:%S")
-
 source android_config
 
+now=$(date "+%Y-%m-%d_%H:%M:%S")
+backup_file=${backup_dir}/${now}.ab
 backup_options_5="-f ${backup_file} -apk -all -nosystem -shared"
 backup_options_6="-f ${backup_file} -all"
-backup_file=${backup_dir}/${now}.ab
 
 
 function output {
@@ -40,40 +39,49 @@ alias fail='{ read message; error_output "${message}"; return 1; } <<<'
 function reboot_from_adb_to_adb {
   output                        "Rebooting phone."
   adb reboot                    || fail "Failed to reboot from adb to adb."
+  wait_for_adb
 }
 
 
 function reboot_from_adb_to_fastboot {
   output                        "Rebooting to fastboot."
   adb reboot-bootloader         || fail "Failed to reboot from adb to fastboot."
+  wait_for_fastboot
 }
 
 
 function reboot_from_adb_to_recovery {
   output                        "Rebooting to recovery."
   adb reboot recovery           || fail "Failed to reboot from adb to recovery."
+  prompt                        "When the phone has rebooted to recovery, press Enter to continue."
 }
 
 
 function reboot_from_fastboot_to_adb {
   output                        "Rebooting phone."
   fastboot reboot               || fail "Failed to reboot from fastboot to adb."
+  wait_for_adb
 }
 
 
 function reboot_from_fastboot_to_fastboot {
   output                        "Rebooting to fastboot."
   fastboot reboot-bootloader    || fail "Failed to reboot from fastboot to fastboot."
+  wait_for_fastboot
 }
 
 
 function reboot_from_fastboot_to_recovery {
-  reboot_from_fastbot_to_adb    || fail "Failed to reboot from fastboot to adb."
+  reboot_from_fastboot_to_adb   || fail "Failed to reboot from fastboot to adb."
   reboot_from_adb_to_recovery   || fail "Failed to reboot from adb to recovery."
 }
 
 
 function backup_data {
+  if test 0 -eq $(count_adb_devices); then
+    reboot_from_fastboot_to_adb || fail "Failed to reboot from fastboot to adb."
+  fi
+
   backup_options=$backup_options_5
   if test $start_major_version -gt 5; then
     backup_options=$backup_options_6
@@ -81,8 +89,8 @@ function backup_data {
 
   while true; do
     output "Backing up data to:  ${backup_file}"
-    adb backup $backup_options
-    file_size=$(stat --printf="%s" $backup_file)
+    adb backup $backup_options                          || fail "Failed:  adb backup ${backup_options}"
+    file_size=$(stat --printf="%s" $backup_file)        || fail "Failed to ascertain backup file size."
     if test 0 = $file_size; then
       output "Warning:  That backup was empty."
       output "Warning:  Use the phone's back button to quit the backup if still running."
@@ -111,9 +119,13 @@ function backup_data {
 
 
 function restore_data {
+  if test 0 -eq $(count_adb_devices); then
+    reboot_from_fastboot_to_adb || fail "Failed to reboot from fastboot to adb."
+  fi
+
   while true; do
     output "Restoring data from:  $backup_file"
-    adb restore $backup_file
+    adb restore $backup_file  || fail "Failed:  adb restore ${backup_file}"
     output "Warning:  I can't verify success.  (This is normal.)"
     output "Warning:  I need your judgement on whether to continue."
     prompt "Try again, Quit, or Continue?  [t,q,C]"
@@ -132,7 +144,8 @@ function restore_data {
         ;;
     esac
   done
-
+  
+  reboot_from_adb_to_adb        || fail "Failed to reboot from adb to adb."
   output "Restore successful."
 }
 
@@ -159,11 +172,11 @@ function greet {
 |   The phone must be connected to this host by USB.
 |
 | Itinerary:
+|
+|   I will backup application and shared data from the phone.
 | 
 |   I will download the latest stock image for ${device_friendly_name}, code
 |   named ${device_code_name}.  
-|   
-|   I will backup application and shared data from the phone.
 |   
 |   I will install the image.  
 |   
@@ -196,15 +209,6 @@ function greet {
 EOF
 
   
-}
-
-
-function bye {
-  cat << EOF
-| 
-| Success!  Your phone should be up to date, and your data and settings should
-| be restored.
-EOF
 }
 
 
@@ -246,7 +250,7 @@ function download_latest_twrp_image {
 }
 
 
-function download_latest_image {
+function download_latest_stock_image {
   if test -e $image_file; then
     output "Warning:  Image file already exists.  Skipping download."
   else
@@ -275,7 +279,11 @@ function unpack_image {
 
 
 function install_image {
-  cd $image_dir || fail "Failed to enter image directory."
+  if test 0 -eq $(count_fastboot_devices); then
+    reboot_from_adb_to_fastboot         || fail "Failed to reboot from adb to fastboot."
+  fi
+
+  cd $image_dir                         || fail "Failed to enter image directory."
 
   output "Beginning installation."
 
@@ -331,6 +339,10 @@ EOF
 
 
 function install_modified_boot {
+  if test 0 -eq $(count_fastboot_devices); then
+    reboot_from_adb_to_fastboot         || fail "Failed to reboot from adb to fastboot."
+  fi
+
   output "Installing modified boot volume."
 
   fastboot flash boot ~/images/nexus5/modified_boot_for_selinux_compatible_su/boot.img || fail "Failed to flash modified boot."
@@ -340,6 +352,10 @@ function install_modified_boot {
 
 
 function install_twrp_image {
+  if test 0 -eq $(count_fastboot_devices); then
+    reboot_from_adb_to_fastboot         || fail "Failed to reboot from adb to fastboot."
+  fi
+
   output "Beginning TWRP recovery image installation."
 
   fastboot flash recovery $twrp_image_file || fail "Failed to flash twrp image:  ${twrp_image_file}"
@@ -348,14 +364,41 @@ function install_twrp_image {
 }
 
 
+function initialize_twrp {
+  if test 0 -eq $(count_adb_devices); then
+    reboot_from_fastboot_to_recovery    || fail "Failed to reboot from fastboot to recovery."
+  else 
+    reboot_from_adb_to_recovery         || fail "Failed to reboot from adb to recovery."
+  fi
+
+  prompt                               "Accept the proposal to modify the system volume, then hit Enter."
+  prompt                               "Hit \"Reboot\", then \"System\", then come back and hit Enter."
+  prompt                               "Accept the proposal to root the phone, then come back and hit Enter."
+  wait_for_adb
+}
+
+
 function wait_for_adb {
   output "Waiting for adb..."
-  adb_count=$(count_adb_devices)
-  while ! test $adb_count -eq 1; do
-    output "... ${adb_count} / 1 devices detected."
-    sleep 1
+  while 
     adb_count=$(count_adb_devices)
+    ! test $adb_count -eq 1
+  do
+    #output "... ${adb_count} / 1 devices detected."
+    sleep 1
   done
+
+  
+  while 
+    boot_completed=$(
+      adb shell getprop sys.boot_completed \
+        | sed 's/[^0-9]//g'
+    )
+    ! test "${boot_completed}" = '1'
+  do
+    sleep 1
+  done
+
   output "adb is up."
 }
 
@@ -379,4 +422,44 @@ function wait_for_fastboot {
 
 function count_fastboot_devices {
   echo $(fastboot devices | wc -l)
+}
+
+
+latest_image_link=$(latest_image_link)
+image_file=$(echo $latest_image_link | sed 's/^.*\///')
+image_dir=$(echo $image_file| sed 's/-factory-[a-z0-9]*\.tgz$//')
+latest_twrp_image_link=$(latest_twrp_image_link)
+twrp_image_file=$(echo $latest_twrp_image_link | sed 's/^.*\///')
+
+if test 0 -eq $(count_adb_devices); then
+  reboot_from_fastboot_to_adb || fail "Failed to reboot from fastboot to adb."
+fi
+
+start_version=$(adb shell getprop ro.build.version.release)
+start_major_version=$(echo $start_version | sed 's/\..*//g')
+echo $start_major_version \
+  | grep -q '^[0-9]$'         || {
+  error_output "Invalid starting version:  ${start_major_version}"
+  exit 1
+}
+
+cycle_adb || {
+  error_output "Failed to cycle adb."
+  exit 1
+}
+
+# Get phone count after cycle_adb, otherwise lines about "starting daemon"
+# throw off the count.
+start_adb_count=$(count_adb_devices)
+start_fastboot_count=$(count_fastboot_devices)
+start_phone_count=$(( $start_adb_count + $start_fastboot_count ))
+
+mkdir -p ${backup_dir} || {
+  error_output "Failed to create backup directory:  ${backup_dir}"
+  exit 1
+}
+
+cd /tmp/ || {
+  error_output "Failed to enter directory:  /tmp"
+  exit 1
 }
