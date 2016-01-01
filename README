@@ -74,3 +74,12 @@ Scripts:
 
   notehack - Either resume a notes file or create a new one from a template,
   then launch an editor on it.  (I use it for nethack notes.)
+
+  android_upgrade - Upgrade your android device (at least if it's a Nexus 5)
+  to the latest stock image.  Then deploy TWRP and root that thing.  If
+  you're having a really good day, this script may help preserve your
+  settings by using the 'adb backup' API.
+
+  android_tools - Functions and stuff used by android_upgrade.
+
+  android_config - Settings for android_tools and android_upgrade.
