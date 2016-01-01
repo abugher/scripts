@@ -6,74 +6,15 @@
 # published by Sam Hocevar. See WTFPL.txt or http://www.wtfpl.net/ for more
 # details.
 
+shopt -s expand_aliases
+
 now=$(date "+%Y-%m-%d_%H:%M:%S")
-device_code_name='hammerhead'
-device_friendly_name='Nexus 5'
-backup_dir=~/backup/aaron-phone
-backup_file=${backup_dir}/${now}.ab
-# -apk:  Google backs up play store apk's, not out-of-band.  No
-# -out-of-band-apk option available.
-# -all:  This just specifies "all packages" as the target.
-# -nosystem:  System settings would be nice, but compatibility is not
-# guaranteed, since the system is being upgraded.
+
+source android_config
+
 backup_options_5="-f ${backup_file} -apk -all -nosystem -shared"
 backup_options_6="-f ${backup_file} -all"
-output_prefix='| '
-
-function main {
-  latest_image_link=$(latest_image_link)
-  image_file=$(echo $latest_image_link | sed 's/^.*\///')
-  image_dir=$(echo $image_file| sed 's/-factory-[a-z0-9]*\.tgz$//')
-  latest_twrp_image_link=$(latest_twrp_image_link)
-  twrp_image_file=$(echo $latest_twrp_image_link | sed 's/^.*\///')
-  start_phone_count=$(count_phones)
-  start_fastboot_count=$(count_fastboots)
-
-  cd /tmp/                                      || fail "Failed to enter directory:  /tmp"
-  mkdir -p ${backup_dir}                        || fail "Failed to create backup directory:  ${backup_dir}"
-#  greet                                         || fail "Failed to greet the user."
-  cycle_adb                                     || fail "Failed to cycle adb."
-
-  start_version=$(adb shell getprop ro.build.version.release)
-  start_major_version=$(echo $start_version | sed 's/\..*//g')
-
-  echo $start_major_version | grep -q '^[0-9]$' || fail "Failed to ascertain starting version."
-
-  download_latest_image                         || fail "Failed to download stock image."
-  download_latest_twrp_image                    || fail "Failed to download TWRP recovery image."
-#  backup_data                                   || fail "Failed to backup data."
-#  unpack_image                                  || fail "Failed to unpack image."
-#  reboot_to_fastboot                            || fail "Failed to reboot to fastboot."
-#  install_image                                 || fail "Failed to install image."
-
-#  output "Once you provide wifi and Google credentials, Google should start restoring apps."
-#  prompt "When Google finishes restoring apps and USB debugging is enabled, press Enter to continue."
-
-  reboot_to_fastboot                            || fail "Failed to reboot to fastboot."
-  install_modified_boot                         || fail "Failed to install modified boot volume."
-  install_twrp_image                            || fail "Failed to install TWRP recovery image."
-
-# This seems nice but doesn't work.  Once you've booted Android, the recovery
-# has already been overwritten.
-#  reboot_from_fastboot                          || fail "Failed to reboot from fastboot."
-#  wait_for_phone
-#  reboot_to_recovery                            || fail "Failed to reboot to recovery."
-
-  prompt "Please use the volume and power buttons to enter Recovery mode, then press Enter."
-  prompt "Accept the proposal to modify the system volume, then hit Enter."
-  prompt "Hit \"Reboot\", then \"System\", then come back and hit Enter."
-  prompt "Accept the proposal to root the phone, then come back and hit Enter."
-
-  wait_for_phone
-
-  output "Give it a chance to finish booting.  (30s)"
-  sleep 30
-
-  restore_data                                  || fail "Failed to restore application data."
-  reboot_phone                                  || fail "Failed to reboot."
-
-  bye
-}
+backup_file=${backup_dir}/${now}.ab
 
 
 function output {
@@ -86,12 +27,6 @@ function error_output {
 }
 
 
-function fail {
-  error_output "${1}"
-  exit 1
-}
-
-
 function prompt {
   # Clear stdin.
   while read -r -t 0; do read -r; done
@@ -99,34 +34,42 @@ function prompt {
 }
 
 
-function reboot_phone {
-  output "Rebooting phone."
-  adb reboot || fail "Failed to adb reboot."
+alias fail='{ read message; error_output "${message}"; return 1; } <<<'
+
+
+function reboot_from_adb_to_adb {
+  output                        "Rebooting phone."
+  adb reboot                    || fail "Failed to reboot from adb to adb."
 }
 
 
-function reboot_from_fastboot {
-  output "Rebooting phone."
-  fastboot reboot || fail "Failed to fastboot reboot."
+function reboot_from_adb_to_fastboot {
+  output                        "Rebooting to fastboot."
+  adb reboot-bootloader         || fail "Failed to reboot from adb to fastboot."
 }
 
 
+function reboot_from_adb_to_recovery {
+  output                        "Rebooting to recovery."
+  adb reboot recovery           || fail "Failed to reboot from adb to recovery."
+}
+
+
+function reboot_from_fastboot_to_adb {
+  output                        "Rebooting phone."
+  fastboot reboot               || fail "Failed to reboot from fastboot to adb."
+}
 
 
 function reboot_from_fastboot_to_fastboot {
-  output "Rebooting to fastboot."
-  fastboot reboot-bootloader || fail "Failed to fastboot reboot-bootloader"
-}
-
-function reboot_to_recovery {
-  output "Rebooting to recovery."
-  adb reboot recovery || fail "Failed to adb reboot recovery."
+  output                        "Rebooting to fastboot."
+  fastboot reboot-bootloader    || fail "Failed to reboot from fastboot to fastboot."
 }
 
 
-function reboot_to_fastboot {
-  output "Rebooting to fastboot."
-  adb reboot-bootloader || fail "Failed to reboot to fastboot."
+function reboot_from_fastboot_to_recovery {
+  reboot_from_fastbot_to_adb    || fail "Failed to reboot from fastboot to adb."
+  reboot_from_adb_to_recovery   || fail "Failed to reboot from adb to recovery."
 }
 
 
@@ -200,7 +143,10 @@ function greet {
 |
 |   Your bootloader must be unlocked.
 |
-|   adb and fastboot must be available.  On Debian Jessie, get these packages:
+|   Your phone must have a working Android installation.
+|
+|   adb and fastboot commands must be available.  On Debian Jessie, get
+|   these packages:
 |     android-tools-adb
 |     android-tools-fastboot
 |
@@ -240,6 +186,11 @@ function greet {
 |   You will accept the offer from TWRP to install SuperSU and root the phone.
 |   
 |   I will restore application and shared data to the phone.  
+|
+| Be advised:
+|
+|   Do not plug or unplug any USB devices, especially Android devices, during
+|   this process.  (We count devices, and that will throw off the count.)
 |
 | 
 EOF
@@ -397,36 +348,35 @@ function install_twrp_image {
 }
 
 
-function wait_for_phone {
-  output "Waiting for phone..."
-  phone_count=$(count_phones)
-  while test $phone_count -lt $start_phone_count; do
-    output "... $phone_count / $start_phone_count devices detected."
+function wait_for_adb {
+  output "Waiting for adb..."
+  adb_count=$(count_adb_devices)
+  while ! test $adb_count -eq 1; do
+    output "... ${adb_count} / 1 devices detected."
     sleep 1
-    phone_count=$(count_phones)
+    adb_count=$(count_adb_devices)
   done
-  output "Phone is back."
+  output "adb is up."
 }
 
 
-function count_phones {
+function count_adb_devices {
   echo $(( $(adb devices | wc -l) - 2 ))
 }
 
 
 function wait_for_fastboot {
   output "Waiting for fastboot..."
-  while test $(count_fastboots) -lt $start_fastboot_count; do
+  fastboot_count=$(count_fastboot_devices)
+  while ! test $fastboot_count -eq 1; do
+    output "... ${fastboot_count} / 1 devices detected."
     sleep 1;
-    output "..."
+    fastboot_count=$(count_fastboot_devices)
   done
-  output "Phone is back."
+  output "fastboot is up."
 }
 
 
-function count_fastboots {
+function count_fastboot_devices {
   echo $(fastboot devices | wc -l)
 }
-
-
-main

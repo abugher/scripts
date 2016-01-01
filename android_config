@@ -1,0 +1,6 @@
+device_code_name='hammerhead'
+device_friendly_name='Nexus 5'
+backup_dir=~/backup/aaron-phone
+output_prefix='| '
+
+
