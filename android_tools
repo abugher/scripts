@@ -227,7 +227,7 @@ function latest_listing {
 
 
 function latest_image_link {
-    echo $latest_listing \
+    echo -e "${latest_listing}" \
     | grep $device_code_name'.*'factory \
     | tail -n 1 \
     | awk -F '"' '{print $2}'
@@ -235,7 +235,7 @@ function latest_image_link {
 
 
 function latest_image_version {
-    echo $latest_listing \
+    echo -e "${latest_listing}" \
     | grep -B 1 $device_code_name'.*'factory \
     | tail -n 2 \
     | head -n 1 \
@@ -257,7 +257,7 @@ function latest_twrp_image_link {
 
 function download_latest_twrp_image {
   if test -e $twrp_image_file; then
-    output "Warning:  TWRP image file already exists.  Skipping download."
+    output "TWRP image file already exists.  Skipping download."
   else
     output "TWRP download begins."
     wget --referer $latest_twrp_image_link $latest_twrp_image_link
@@ -302,15 +302,15 @@ function cycle_adb {
   output "Killing adb."
   # Sometimes you can start adb as the wrong user and get in an unhappy state.
   # Clear that.
-  adb kill-server
+  adb kill-server                       || fail "Failed to kill adb server."
   output "Starting adb."
-  adb start-server
+  adb start-server                      || fail "Failed to start adb server."
 }
 
 
 function unpack_image {
   output "Unpacking image."
-  tar xf $image_file
+  tar xf $image_file                    || fail "Failed to unpack image."
   output "Image unpacked."
 }
 
@@ -412,7 +412,7 @@ function install_twrp_image {
   output "Beginning TWRP recovery image installation."
 
   fastboot flash recovery $twrp_image_file      || fail "Failed to flash twrp image:  ${twrp_image_file}"
-  reboot_from_adb_to_fastboot                   || fail "Failed to reboot from adb to fastboot."
+  reboot_from_fastboot_to_fastboot              || fail "Failed to reboot from fastboot to fastboot."
   initialize_twrp                               || fail "Failed to initialize TWRP."
 
   output "TWRP recovery image installation successful."
@@ -509,6 +509,14 @@ echo $latest_major_version | grep -q '^[0-9]$'|| {
   error_output "Invalid latest version:  ${latest_major_version}"
   exit 1
 }
+
+if test "${start_version}" = "${latest_version}"; then
+  prompt "WARNING:  Latest image is the same version already on the phone (${start_version}.  Continue?  [Y,n]  "
+  echo $response | grep -iv 'n' || exit 1
+else
+  output "Upgrading from ${start_version} to ${latest_version}."
+fi
+
 test ! $start_version =  $latest_version || {
   prompt "WARNING:  Latest image is the same version already on the phone.  Continue?  [Y,n]  "
   echo $response | grep -iv 'n' || exit 1
