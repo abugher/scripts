@@ -268,12 +268,33 @@ function download_latest_twrp_image {
 
 function download_latest_stock_image {
   if test -e $image_file; then
-    output "Warning:  Image file already exists.  Skipping download."
+    output "Image file already exists.  Skipping download."
   else
     output "Download begins."
     wget $latest_image_link
     output "Download complete."
   fi
+}
+
+
+function download_supersu {
+  supersu_file=$(
+    echo $supersu_link \
+    | sed -E 's/^.*(BETA.*)\?.*/\1/'
+  )
+
+  if test -e $supersu_file; then
+    output "SuperSU file already exists.  Skipping download."
+  else
+    wget \
+      -O $supersu_file \
+      $supersu_link
+  fi
+}
+
+
+function push_supersu {
+  adb push $supersu_file /sdcard/       || fail "Failed to push $supersu_file to /sdcard/ ."
 }
 
 
@@ -377,12 +398,12 @@ function install_modified_boot {
 
 
 function install_twrp_image {
-  if 
-        test 'hammerhead' = $device_code_name \
-    &&  test 5 -lt $latest_major_version
-  then
-    install_modified_boot                       || fail "Failed to install modified boot image."
-  fi
+#  if 
+#        test 'hammerhead' = $device_code_name \
+#    &&  test 5 -lt $latest_major_version
+#  then
+#    install_modified_boot                       || fail "Failed to install modified boot image."
+#  fi
 
   if test 0 -eq $(count_fastboot_devices); then
     reboot_from_adb_to_fastboot                 || fail "Failed to reboot from adb to fastboot."
@@ -391,8 +412,8 @@ function install_twrp_image {
   output "Beginning TWRP recovery image installation."
 
   fastboot flash recovery $twrp_image_file      || fail "Failed to flash twrp image:  ${twrp_image_file}"
-
-  initialize_twrp  || fail "Failed to initialize TWRP."
+  reboot_from_adb_to_fastboot                   || fail "Failed to reboot from adb to fastboot."
+  initialize_twrp                               || fail "Failed to initialize TWRP."
 
   output "TWRP recovery image installation successful."
 }
@@ -406,8 +427,10 @@ function initialize_twrp {
   fi
 
   prompt        "Accept the proposal to modify the system volume, then hit Enter."
-  prompt        "Hit \"Reboot\", then \"System\", then come back and hit Enter."
-  prompt        "Accept the proposal to root the phone, then come back and hit Enter."
+  output        "Hit \"Install\", then scroll down and select ${supersu_file} under /sdcard."
+  prompt        "Swipe to confirm, then hit Enter."
+  prompt        "Hit \"Reboot System\", then hit Enter."
+  prompt        "Do NOT allow TWRP to attempt to root the phone.  Hit Enter."
   wait_for_adb
 }
 
