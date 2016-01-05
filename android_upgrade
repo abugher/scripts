@@ -10,24 +10,13 @@ source android_tools
 
 function main {
   test 1 -eq $start_phone_count         || fail "I expect one device, but found ${start_phone_count} (${start_adb_count} adb and ${start_fastboot_count} fastboot)."
-
   greet                                 || fail "Failed to greet the user."
-
   backup_data                           || fail "Failed to backup data."
-
   download_latest_stock_image           || fail "Failed to download stock image."
   download_latest_twrp_image            || fail "Failed to download TWRP recovery image."
-
   unpack_image                          || fail "Failed to unpack image."
   install_image                         || fail "Failed to install image."
-
-  output "Once you provide wifi and Google credentials, Google should start restoring apps."
-  prompt "When Google finishes restoring apps and USB debugging is enabled, press Enter to continue."
-
-  install_modified_boot                 || fail "Failed to install modified boot volume."
   install_twrp_image                    || fail "Failed to install TWRP recovery image."
-
-  initialize_twrp                       || fail "Failed to initialize TWRP."
   restore_data                          || fail "Failed to restore application data."
   output                                "Success!"
 }

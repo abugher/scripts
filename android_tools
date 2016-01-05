@@ -76,6 +76,10 @@ function reboot_from_fastboot_to_recovery {
   reboot_from_adb_to_recovery   || fail "Failed to reboot from adb to recovery."
 }
 
+function reboot_from_fastboot_to_recovery_by_user {
+  prompt                        "Use the volume and power buttons to enter Recovery, then press Enter to continue."
+}
+
 
 function backup_data {
   if test 0 -eq $(count_adb_devices); then
@@ -94,7 +98,7 @@ function backup_data {
     if test 0 = $file_size; then
       output "Warning:  That backup was empty."
       output "Warning:  Use the phone's back button to quit the backup if still running."
-      prompt "Try again, Quit, or Continue?  [T,q,c]"
+      prompt "Try again, Quit, or Continue?  [T,q,c]  "
       case "${response}" in
         't')
           continue
@@ -128,7 +132,7 @@ function restore_data {
     adb restore $backup_file  || fail "Failed:  adb restore ${backup_file}"
     output "Warning:  I can't verify success.  (This is normal.)"
     output "Warning:  I need your judgement on whether to continue."
-    prompt "Try again, Quit, or Continue?  [t,q,C]"
+    prompt "Try again, Quit, or Continue?  [t,q,C]  "
     case "${response}" in
       't')
         continue
@@ -188,7 +192,7 @@ function greet {
 |
 |   You will re-enable USB debugging.
 |
-|   I will install a modified boot volume with selinux-compatible su, or somesuch.
+|   I will (conditionally) install a boot image modified with selinux policy for hacked 'su'.
 |
 |   I will install TWRP recovery.
 |
@@ -199,6 +203,8 @@ function greet {
 |   You will accept the offer from TWRP to install SuperSU and root the phone.
 |   
 |   I will restore application and shared data to the phone.  
+|
+|   If the SuperSU app is not installed, accept the prompt to install it.
 |
 | Be advised:
 |
@@ -212,18 +218,28 @@ EOF
 }
 
 
-function latest_image_link {
-  # Output URL of latest image, scraped from last entry for this device in the listing.
-
-  image_list_url='https://developers.google.com/android/nexus/images'
-
+function latest_listing {
   wget \
     -O - \
     $image_list_url \
-    2> /dev/null \
+    2> /dev/null
+}
+
+
+function latest_image_link {
+    echo $latest_listing \
     | grep $device_code_name'.*'factory \
     | tail -n 1 \
     | awk -F '"' '{print $2}'
+}
+
+
+function latest_image_version {
+    echo $latest_listing \
+    | grep -B 1 $device_code_name'.*'factory \
+    | tail -n 2 \
+    | head -n 1 \
+    | sed -E 's/^[^0-9]*([0-9.]+).*$/\1/'
 }
 
 
@@ -313,70 +329,85 @@ EOF
   # This might be paranoid.  The script gets downloaded over https.  (Trust
   # Google with root on host system?)  I don't think the script changes much
   # anyway.
-  if ! diff $install_script_pure_file $install_script_real_file; then
-    error_output "The install script changed.  You may wish to review it, and/or the"
-    error_output "procedure at:  https://developers.google.com/android/nexus/images"
+  if ! diff $install_script_pure_file $install_script_real_file >/dev/null; then
+    error_output "The install script changed.  You may wish to review it, at:"
+    error_output "  ${install_script_real_file}"
+    error_output "...and/or the"
+    error_output "procedure at:  "
+    error_output "  https://developers.google.com/android/nexus/images"
     error_output "...then edit this script appropriately."
     return 1
   fi
 
   # flash-all.sh contents, or similar
   output "Flashing bootloader."
-  fastboot flash bootloader bootloader-hammerhead-*.img || fail "Failed to flash bootloader."
-  reboot_from_fastboot_to_fastboot || fail "Failed to reboot to fastboot."
+  fastboot flash bootloader bootloader-hammerhead-*.img \
+                                                || fail "Failed to flash bootloader."
+  reboot_from_fastboot_to_fastboot              || fail "Failed to reboot to fastboot."
   sleep 1
   output "Flashing radio."
-  fastboot flash radio radio-hammerhead-*.img || fail "Failed to flash radio."
-  reboot_from_fastboot_to_fastboot || fail "Failed to reboot to fastboot."
+  fastboot flash radio radio-hammerhead-*.img   || fail "Failed to flash radio."
+  reboot_from_fastboot_to_fastboot              || fail "Failed to reboot to fastboot."
   sleep 1
   output "Flashing image."
-  fastboot -w update image-hammerhead-*.zip || fail "Failed to flash image."
+  fastboot -w update image-hammerhead-*.zip     || fail "Failed to flash image."
 
   output "Installation complete."
   
   cd - >/dev/null || fail "Failed to return from image directory."
+
+  output "Once you provide wifi and Google credentials, Google should start restoring apps."
+  prompt "When Google finishes restoring apps and USB debugging is enabled, press Enter to continue."
 }
 
 
 function install_modified_boot {
   if test 0 -eq $(count_fastboot_devices); then
-    reboot_from_adb_to_fastboot         || fail "Failed to reboot from adb to fastboot."
+    reboot_from_adb_to_fastboot                 || fail "Failed to reboot from adb to fastboot."
   fi
 
   output "Installing modified boot volume."
 
-  fastboot flash boot ~/images/nexus5/modified_boot_for_selinux_compatible_su/boot.img || fail "Failed to flash modified boot."
+  fastboot flash boot ~/images/nexus5/hacks/boot/upstream/boot.img \
+                                                || fail "Failed to flash modified boot."
+  reboot_from_fastboot_to_fastboot              || fail "Failed to reboot from fastboot to fastboot."
 
   output "Installation of modified boot volume successful."
 }
 
 
 function install_twrp_image {
+  if 
+        test 'hammerhead' = $device_code_name \
+    &&  test 5 -lt $latest_major_version
+  then
+    install_modified_boot                       || fail "Failed to install modified boot image."
+  fi
+
   if test 0 -eq $(count_fastboot_devices); then
-    reboot_from_adb_to_fastboot         || fail "Failed to reboot from adb to fastboot."
+    reboot_from_adb_to_fastboot                 || fail "Failed to reboot from adb to fastboot."
   fi
 
   output "Beginning TWRP recovery image installation."
 
-  fastboot flash recovery $twrp_image_file || fail "Failed to flash twrp image:  ${twrp_image_file}"
+  fastboot flash recovery $twrp_image_file      || fail "Failed to flash twrp image:  ${twrp_image_file}"
+
+  initialize_twrp  || fail "Failed to initialize TWRP."
 
   output "TWRP recovery image installation successful."
-  output "If the SuperSU app was not previously installed, you should be prompted to"
-  output "install it when the phone boots."
-  prompt "Hit Enter to acknowledge."
 }
 
 
 function initialize_twrp {
   if test 0 -eq $(count_adb_devices); then
-    reboot_from_fastboot_to_recovery    || fail "Failed to reboot from fastboot to recovery."
+    reboot_from_fastboot_to_recovery_by_user    || fail "Failed to reboot from fastboot to recovery."
   else 
-    reboot_from_adb_to_recovery         || fail "Failed to reboot from adb to recovery."
+    reboot_from_adb_to_recovery                 || fail "Failed to reboot from adb to recovery."
   fi
 
-  prompt                               "Accept the proposal to modify the system volume, then hit Enter."
-  prompt                               "Hit \"Reboot\", then \"System\", then come back and hit Enter."
-  prompt                               "Accept the proposal to root the phone, then come back and hit Enter."
+  prompt        "Accept the proposal to modify the system volume, then hit Enter."
+  prompt        "Hit \"Reboot\", then \"System\", then come back and hit Enter."
+  prompt        "Accept the proposal to root the phone, then come back and hit Enter."
   wait_for_adb
 }
 
@@ -429,6 +460,7 @@ function count_fastboot_devices {
 }
 
 
+latest_listing=$(latest_listing)
 latest_image_link=$(latest_image_link)
 image_file=$(echo $latest_image_link | sed 's/^.*\///')
 image_dir=$(echo $image_file| sed 's/-factory-[a-z0-9]*\.tgz$//')
@@ -436,15 +468,27 @@ latest_twrp_image_link=$(latest_twrp_image_link)
 twrp_image_file=$(echo $latest_twrp_image_link | sed 's/^.*\///')
 
 if test 0 -eq $(count_adb_devices); then
-  reboot_from_fastboot_to_adb || fail "Failed to reboot from fastboot to adb."
+  reboot_from_fastboot_to_adb || {
+    error_output "Failed to reboot from fastboot to adb."
+    exit 1
+  }
 fi
 
 start_version=$(adb shell getprop ro.build.version.release)
 start_major_version=$(echo $start_version | sed 's/\..*//g')
-echo $start_major_version \
-  | grep -q '^[0-9]$'         || {
+echo $start_major_version | grep -q '^[0-9]$'|| {
   error_output "Invalid starting version:  ${start_major_version}"
   exit 1
+}
+latest_version=$(latest_image_version)
+latest_major_version=$(echo $latest_version | sed 's/\..*//g')
+echo $latest_major_version | grep -q '^[0-9]$'|| {
+  error_output "Invalid latest version:  ${latest_major_version}"
+  exit 1
+}
+test ! $start_version =  $latest_version || {
+  prompt "WARNING:  Latest image is the same version already on the phone.  Continue?  [Y,n]  "
+  echo $response | grep -iv 'n' || exit 1
 }
 
 cycle_adb || {

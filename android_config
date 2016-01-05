@@ -1,3 +1,4 @@
+image_list_url='https://developers.google.com/android/nexus/images'
 device_code_name='hammerhead'
 device_friendly_name='Nexus 5'
 backup_dir=~/backup/aaron-phone
