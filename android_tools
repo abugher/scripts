@@ -279,22 +279,26 @@ function download_latest_stock_image {
 
 function download_supersu {
   supersu_file=$(
-    echo $supersu_link \
+    echo -e "${supersu_link}" \
     | sed -E 's/^.*(BETA.*)\?.*/\1/'
   )
 
   if test -e $supersu_file; then
     output "SuperSU file already exists.  Skipping download."
   else
-    wget \
-      -O $supersu_file \
-      $supersu_link
+    output "Downloading SuperSU from ${supersu_link} to ${supersu_file} ."
+    # Without 'eval', this just puts HTML into $supersu_file.  *shrug*
+    eval \
+      wget \
+      -O "${supersu_file}" \
+      "${supersu_link}"
   fi
 }
 
 
 function push_supersu {
-  adb push $supersu_file /sdcard/       || fail "Failed to push $supersu_file to /sdcard/ ."
+  output                                "Pushing ${supersu_file} to /sdcard/ ."
+  adb push $supersu_file /sdcard/       || fail "Failed to push ${supersu_file} to /sdcard/ ."
 }
 
 
@@ -427,6 +431,7 @@ function initialize_twrp {
   fi
 
   prompt        "Accept the proposal to modify the system volume, then hit Enter."
+  push_supersu  || fail "Failed to push SuperSU."
   output        "Hit \"Install\", then scroll down and select ${supersu_file} under /sdcard."
   prompt        "Swipe to confirm, then hit Enter."
   prompt        "Hit \"Reboot System\", then hit Enter."

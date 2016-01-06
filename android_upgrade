@@ -16,7 +16,6 @@ function main {
   download_latest_twrp_image            || fail "Failed to download TWRP recovery image."
   download_supersu                      || fail "Failed to download SuperSU."
   unpack_image                          || fail "Failed to unpack image."
-  push_supersu                          || fail "Failed to push SuperSU to the phone."
   install_image                         || fail "Failed to install image."
   install_twrp_image                    || fail "Failed to install TWRP recovery image."
   restore_data                          || fail "Failed to restore application data."
