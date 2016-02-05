@@ -377,6 +377,7 @@ EOF
   if test $latest_major_version = $start_major_version; then wipe_flag=''
   else wipe_flag='-w'
   fi
+  echo "DEBUG:  fastboot \"${wipe_flag}\" update image-hammerhead-*.zip"
   fastboot "${wipe_flag}" update image-hammerhead-*.zip     || fail "Failed to flash image."
 
   output "Installation complete."
