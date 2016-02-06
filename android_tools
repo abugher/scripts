@@ -291,6 +291,7 @@ function download_supersu {
     eval \
       wget \
       -O "${supersu_file}" \
+      --referer="${supersu_link}" \
       "${supersu_link}"
   fi
 }
