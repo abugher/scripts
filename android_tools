@@ -377,15 +377,19 @@ EOF
   if test $latest_major_version = $start_major_version; then wipe_flag=''
   else wipe_flag='-w'
   fi
-  echo "DEBUG:  fastboot \"${wipe_flag}\" update image-hammerhead-*.zip"
-  fastboot "${wipe_flag}" update image-hammerhead-*.zip     || fail "Failed to flash image."
+  # No quotes around ${wipe_flag}, here.
+  fastboot ${wipe_flag} update image-hammerhead-*.zip     || fail "Failed to flash image."
 
   output "Installation complete."
   
   cd - >/dev/null || fail "Failed to return from image directory."
 
-  output "Once you provide wifi and Google credentials, Google should start restoring apps."
-  prompt "When Google finishes restoring apps and USB debugging is enabled, press Enter to continue."
+  if ! test "${wipe_flag}" = ""; then
+    output "Once you provide wifi and Google credentials, Google should start restoring apps."
+    prompt "When Google finishes restoring apps and USB debugging is enabled, press Enter to continue."
+  else
+    wait_for_adb
+  fi
 }
 
 
