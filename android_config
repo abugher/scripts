@@ -5,5 +5,3 @@ backup_dir=~/backup/aaron-phone
 output_prefix='| '
 # http://forum.xda-developers.com/showpost.php?p=64161125&postcount=3
 supersu_link='https://download.chainfire.eu/896/SuperSU/BETA-SuperSU-v2.66-20160103015024.zip?retrieve_file=1'
-
-
