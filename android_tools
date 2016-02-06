@@ -439,7 +439,9 @@ function initialize_twrp {
 
   prompt        "Accept the proposal to modify the system volume, then hit Enter."
   push_supersu  || fail "Failed to push SuperSU."
-  output        "Hit \"Install\", then scroll down and select ${supersu_file} under /sdcard."
+  output        "Hit \"Install\", then scroll down and, under /sdcard, select:"
+  output        "  ${supersu_file}"
+  prompt        "Then hit Enter."
   prompt        "Swipe to confirm, then hit Enter."
   prompt        "Hit \"Reboot System\", then hit Enter."
   prompt        "Do NOT allow TWRP to attempt to root the phone.  Hit Enter."
