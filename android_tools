@@ -95,6 +95,7 @@ function backup_data {
     output "Backing up data to:  ${backup_file}"
     output "'adb backup' is undocumented and known to fail quietly without cause."
     output "Your phone should rapidly display filenames as they transfer."
+    output "Try not to change screen orientation."
     adb backup $backup_options                          || fail "Failed:  adb backup ${backup_options}"
     file_size=$(stat --printf="%s" $backup_file)        || fail "Failed to ascertain backup file size."
     if test 0 = $file_size; then
