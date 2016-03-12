@@ -217,6 +217,7 @@ function greet {
 | 
 EOF
 
+prompt "If you use Twilight, turn it off, then hit Enter."
   
 }
 
@@ -427,6 +428,9 @@ function install_twrp_image {
   output "Beginning TWRP recovery image installation."
 
   fastboot flash recovery $twrp_image_file      || fail "Failed to flash twrp image:  ${twrp_image_file}"
+  reboot_from_fastboot_to_fastboot              || fail "Failed to reboot from fastboot to fastboot."
+  # Reboot again.  Otherwise, as of MMB29V, TWRP fails to load, and the OS
+  # boots, and TWRP gets wiped out.
   reboot_from_fastboot_to_fastboot              || fail "Failed to reboot from fastboot to fastboot."
   initialize_twrp                               || fail "Failed to initialize TWRP."
 
