@@ -21,7 +21,7 @@ cd $notedir || {
   exit 1
 }
 
-f=$(ls -tr | tail -n 1)
+f=$(ls -tr | grep -v template | tail -n 1)
 
 # -n for "new"
 if test "${1}" = "-n"; then
