@@ -18,10 +18,14 @@ else
             let tag_parts[0]++
             tag_parts[1]=0
             tag_parts[2]=0
-            echo "${tag_parts[@]}"
+            for part in "${tag_parts[@]}"; do
+              echo "${part}"
+            done
           } \
           | while read l; do
-            echo -n $l'.'
+            if echo "${l}" | grep -qE '[0-9]'; then
+              echo -n $l'.'
+            fi
           done \
           | sed 's/\.$//'
       )
@@ -34,10 +38,14 @@ else
             readarray tag_parts
             let tag_parts[1]++
             tag_parts[2]=0
-            echo "${tag_parts[@]}"
+            for part in "${tag_parts[@]}"; do
+              echo "${part}"
+            done
           } \
           | while read l; do
-            echo -n $l'.'
+            if echo "${l}" | grep -qE '[0-9]'; then
+              echo -n $l'.'
+            fi
           done \
           | sed 's/\.$//'
       )
@@ -49,10 +57,14 @@ else
           | { 
             readarray tag_parts
             let tag_parts[2]++
-            echo "${tag_parts[@]}"
+            for part in "${tag_parts[@]}"; do
+              echo "${part}"
+            done
           } \
           | while read l; do
-            echo -n $l'.'
+            if echo "${l}" | grep -qE '[0-9]'; then
+              echo -n $l'.'
+            fi
           done \
           | sed 's/\.$//'
       )
@@ -64,5 +76,4 @@ else
   esac
 fi
 
-echo "debug:  tag='${tag}'"
 git tag -a "${tag}" -m "Automatic ${arg} increment."
