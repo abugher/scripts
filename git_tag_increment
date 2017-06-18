@@ -62,4 +62,4 @@ else
   esac
 fi
 
-git tag -a $tag -m 'Automatic patch increment.'
+git tag -a $tag -m "Automatic ${1} increment."
