@@ -1,3 +1,5 @@
+arg="${1}"
+
 old_tag=$(
   git tag \
     | tail -n 1
@@ -6,7 +8,7 @@ old_tag=$(
 if test '' == "${old_tag}"; then
   tag=0.0.0
 else
-  case "${1}" in
+  case "${arg}" in
     major)
       tag=$(
         echo "${old_tag}" \
@@ -56,10 +58,10 @@ else
       )
       ;;
     *)
-      echo "ERROR:  Unrecognized argument:  ${1}"
+      echo "ERROR:  Unrecognized argument:  ${arg}"
       exit 1
       ;;
   esac
 fi
 
-git tag -a $tag -m "Automatic ${1} increment."
+git tag -a $tag -m "Automatic ${arg} increment."
