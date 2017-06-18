@@ -1,0 +1,23 @@
+tag=$(
+  old_tag=$(
+    git tag \
+      | tail -n 1
+  )
+  if test '' == "${old_tag}"; then
+    echo 0.0.0
+  else
+    echo "${old_tag}" \
+      | sed 's/\./\n/g' \
+      | { 
+        readarray tag_parts
+        let tag_parts[2]++
+        echo "${tag_parts[@]}"
+      } \
+      | while read l; do
+        echo -n $l'.'
+      done \
+      | sed 's/\.$//'
+  fi
+)
+
+git tag -a $tag -m 'Automatic patch increment.'
