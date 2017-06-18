@@ -1,23 +1,63 @@
-tag=$(
-  old_tag=$(
-    git tag \
-      | tail -n 1
-  )
-  if test '' == "${old_tag}"; then
-    echo 0.0.0
-  else
-    echo "${old_tag}" \
-      | sed 's/\./\n/g' \
-      | { 
-        readarray tag_parts
-        let tag_parts[2]++
-        echo "${tag_parts[@]}"
-      } \
-      | while read l; do
-        echo -n $l'.'
-      done \
-      | sed 's/\.$//'
-  fi
+old_tag=$(
+  git tag \
+    | tail -n 1
 )
+
+if test '' == "${old_tag}"; then
+  tag=0.0.0
+else
+  case "${1}" in
+    major)
+      tag=$(
+        echo "${old_tag}" \
+          | sed 's/\./\n/g' \
+          | { 
+            readarray tag_parts
+            let tag_parts[0]++
+            tag_parts[1]=0
+            tag_parts[2]=0
+            echo "${tag_parts[@]}"
+          } \
+          | while read l; do
+            echo -n $l'.'
+          done \
+          | sed 's/\.$//'
+      )
+    minor)
+      tag=$(
+        echo "${old_tag}" \
+          | sed 's/\./\n/g' \
+          | { 
+            readarray tag_parts
+            let tag_parts[1]++
+            tag_parts[2]=0
+            echo "${tag_parts[@]}"
+          } \
+          | while read l; do
+            echo -n $l'.'
+          done \
+          | sed 's/\.$//'
+      )
+    patch)
+      tag=$(
+        echo "${old_tag}" \
+          | sed 's/\./\n/g' \
+          | { 
+            readarray tag_parts
+            let tag_parts[2]++
+            echo "${tag_parts[@]}"
+          } \
+          | while read l; do
+            echo -n $l'.'
+          done \
+          | sed 's/\.$//'
+      )
+      ;;
+    *)
+      echo "ERROR:  Unrecognized argument:  ${1}"
+      exit 1
+      ;;
+  esac
+fi
 
 git tag -a $tag -m 'Automatic patch increment.'
