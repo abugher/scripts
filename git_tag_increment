@@ -64,4 +64,5 @@ else
   esac
 fi
 
-git tag -a $tag -m "Automatic ${arg} increment."
+echo "debug:  tag='${tag}'"
+git tag -a "${tag}" -m "Automatic ${arg} increment."
