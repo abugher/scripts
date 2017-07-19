@@ -23,7 +23,7 @@ cd $notedir || {
 
 f=$(ls -tr | grep -v template | tail -n 1)
 
-# -n for "new"
+# -n for "new" -- don't edit; just create new profile
 if test "${1}" = "-n"; then
   f=$(stamp).txt || {
     echo -e "Error:  Failed to stamp." >&2
@@ -35,12 +35,12 @@ if test "${1}" = "-n"; then
     cd -
     exit 1
   }
+else
+  vim ${f} || {
+    echo -e "Error:  Failed to vim." >&2
+    cd -
+    exit 1
+  }
 fi 
   
-vim ${f} || {
-  echo -e "Error:  Failed to vim." >&2
-  cd -
-  exit 1
-}
-
 cd -
