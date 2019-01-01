@@ -63,19 +63,34 @@ configure_os() {
     || fail "Failed to write root password."
 
   for file in \
+    /mnt/card/lib/systemd/system/armbian-firstrun-config.service \
+    /mnt/card/lib/systemd/system/armbian-firstrun.service \
+    /mnt/card/usr/lib/armbian/armbian-firstrun-config \
+    /mnt/card/usr/lib/armbian/armbian-firstrun \
+    /mnt/card/etc/systemd/system/multi-user.target.wants/armbian-firstrun-config.service \
     /mnt/card/etc/profile.d/armbian-check-first-login.sh \
     /mnt/card/etc/profile.d/armbian-check-first-login-reboot.sh \
+    /mnt/card/etc/systemd/system/multi-user.target.wants/armbian-firstrun-config.service \
     /mnt/card/var/lib/systemd/deb-systemd-helper-enabled/multi-user.target.wants/NetworkManager.service \
     /mnt/card/etc/systemd/system/multi-user.target.wants/NetworkManager.service \
     /mnt/card/lib/systemd/system/NetworkManager.service \
-    /mnt/card/etc/systemd/system/default.target.wants/ssh.service
+    /mnt/card/etc/systemd/system/default.target.wants/ssh.service \
+    /mnt/card/etc/ssh/ssh_host_*_key*
   do
     sudo rm -f $file \
       || fail "Failed to remove:  ${file}"
   done
 
-  sudo ln -s /dev/null /mnt/card/lib/systemd/system/NetworkManager.service \
-    || fail "Failed to mask NetworkManager."
+  for file in \
+    /mnt/card/lib/systemd/system/armbian-firstrun-config.service \
+    /mnt/card/lib/systemd/system/armbian-firstrun.service \
+    /mnt/card/usr/lib/armbian/armbian-firstrun-config \
+    /mnt/card/usr/lib/armbian/armbian-firstrun \
+    /mnt/card/lib/systemd/system/NetworkManager.service
+  do
+    sudo ln -s /dev/null $file \
+      || fail "Failed to mask service file:  '${file}'"
+  done
 
   read wpa_psk < ~/sensitive/accounts/network/puppies/wpa_psk.txt \
     || fail "Failed to read WPA PSK."
@@ -96,11 +111,27 @@ EOF
   echo 'auto wlan0' | sudo tee -a /mnt/card/etc/network/interfaces \
     || fail "Failed to write to interfaces file."
 
-  echo 'AllowUsers root' | sudo tee -a /mnt/card/etc/ssh/sshd_config \
-    || fail "Failed to write to sshd_config."
+  
+  {
+    sudo tee -a /mnt/card/etc/ssh/sshd_config \
+      || fail "Failed to write to sshd_config."
+  } << EOF
+AllowUsers root
+HostKey /etc/ssh/ssh_host_rsa_key
+UsePam no
+EOF
 
   sudo ln -s /lib/systemd/system/ssh.service /mnt/card/etc/systemd/system/default.target.wants/ssh.service \
     || fail "Failed to write ssh service file."
+
+  sudo touch /mnt/card/etc/ssh/ssh_host_rsa_key \
+    || fail "Failed to initialize SSH host key."
+  sudo chmod 0600 /mnt/card/etc/ssh/ssh_host_rsa_key \
+    || fail "Failed to set permissions on SSH host key."
+  cat ~/sensitive_ansible/inventory/hosts/spy/files/ssh_keys/ssh_host_rsa_key | sudo tee /mnt/card/etc/ssh/ssh_host_rsa_key \
+    || fail "Failed to write SSH host key (private)."
+  cat ~/ansible/inventory/hosts/spy/files/ssh_keys/ssh_host_rsa_key.pub | sudo tee /mnt/card/etc/ssh/ssh_host_rsa_key.pub \
+    || fail "Failed to write SSH host key (public)."
 }
 
 main() {
@@ -119,4 +150,4 @@ main() {
 }
 
 
-main
+time main
