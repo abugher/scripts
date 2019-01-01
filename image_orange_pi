@@ -1,0 +1,122 @@
+#!/bin/bash
+
+image=~/images/orange_pi/Armbian_5.65_Orangepipcplus_Debian_stretch_next_4.14.78.img
+card_device=/dev/sdc
+root_partition="${card_device}1"
+home_partition="${card_device}2"
+
+
+output() {
+  echo "OUTPUT:  ${1}"
+}
+
+
+fail() {
+  echo "ERROR:  ${1}" >&2
+  exit 1
+}
+
+
+get_root() {
+  output "We're going to need some root.  Authenticate for sudo."
+  sudo -v || fail "Failed to get root."
+}
+
+
+write_image() {
+  output "Writing image."
+  # https://www.armbian.com/orange-pi-pc-plus/
+  # https://dl.armbian.com/orangepipcplus/Debian_stretch_next.7z.torrent
+  dd if=$image bs=1M | pv | sudo dd bs=1M of=$card_device || fail "Failed to write image."
+}
+
+
+create_home() {
+  output "Getting storage parameters."
+  read start end <<< $(
+    sudo parted $card_device unit s print free \
+      | awk '/Free Space/ {print $1" "$2}' \
+      | tail -n 1
+  )
+  output "Writing home partition."
+  # 'I' for Ignore, to ignore a warning about alignment.
+  echo I | sudo parted $card_device mkpart primary $start $end \
+    || fail "Failed to write home partition."
+  output "Writing home filesystem."
+  sudo mkfs.f2fs -l home $home_partition \
+    || fail "Failed to write home filesystem."
+}
+
+
+configure_os() {
+  echo 'LABEL=home /home f2fs defaults,noatime,nodiratime 0 2' | sudo tee -a /mnt/card/etc/fstab \
+    || fail "Failed to write fstab."
+
+  # Do this manually (once):
+  #sudo passwd orangepi
+
+  sudo sed -i "s#^root:.*\$#$(
+    sudo grep '^orangepi' /etc/shadow \
+      | sed 's/orangepi/root/' \
+      || fail "failed to extract hash for root (orangepi)"
+  )#" /mnt/card/etc/shadow \
+    || fail "Failed to write root password."
+
+  for file in \
+    /mnt/card/etc/profile.d/armbian-check-first-login.sh \
+    /mnt/card/etc/profile.d/armbian-check-first-login-reboot.sh \
+    /mnt/card/var/lib/systemd/deb-systemd-helper-enabled/multi-user.target.wants/NetworkManager.service \
+    /mnt/card/etc/systemd/system/multi-user.target.wants/NetworkManager.service \
+    /mnt/card/lib/systemd/system/NetworkManager.service \
+    /mnt/card/etc/systemd/system/default.target.wants/ssh.service
+  do
+    sudo rm -f $file \
+      || fail "Failed to remove:  ${file}"
+  done
+
+  sudo ln -s /dev/null /mnt/card/lib/systemd/system/NetworkManager.service \
+    || fail "Failed to mask NetworkManager."
+
+  read wpa_psk < ~/sensitive/accounts/network/puppies/wpa_psk.txt \
+    || fail "Failed to read WPA PSK."
+  {
+    sudo tee /mnt/card/etc/network/interfaces.d/wlan0 \
+      || fail "Failed to write:  interfaces.d/wlan0"
+  } << EOF
+iface wlan0 inet static
+    wpa-essid           puppies
+    wpa-psk             $wpa_psk
+    address             192.168.11.64
+    netmask             255.255.255.0
+    gateway             192.168.11.1
+    dns-nameservers     192.168.11.54
+    dns-search          neuronpointer.net
+EOF
+
+  echo 'auto wlan0' | sudo tee -a /mnt/card/etc/network/interfaces \
+    || fail "Failed to write to interfaces file."
+
+  echo 'AllowUsers root' | sudo tee -a /mnt/card/etc/ssh/sshd_config \
+    || fail "Failed to write to sshd_config."
+
+  sudo ln -s /lib/systemd/system/ssh.service /mnt/card/etc/systemd/system/default.target.wants/ssh.service \
+    || fail "Failed to write ssh service file."
+}
+
+main() {
+  get_root
+  if mountpoint /mnt/card; then
+    sudo umount /mnt/card \
+      || fail "Failed to preparatively unmount /mnt/card."
+  fi
+  write_image
+  create_home
+  sudo mount $root_partition /mnt/card \
+    || fail "Failed to mount card."
+  configure_os
+  sudo umount /mnt/card \
+    || fail "Failed to unmount card."
+}
+
+
+main
