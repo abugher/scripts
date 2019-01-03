@@ -28,13 +28,24 @@ write_image() {
   # https://www.armbian.com/orange-pi-pc-plus/
   # https://dl.armbian.com/orangepipcplus/Debian_stretch_next.7z.torrent
   dd if=$image bs=1M | pv | sudo dd bs=1M of=$card_device || fail "Failed to write image."
+  sudo parted $card_device resizepart 1 10GB \
+    || fail "Failed to resize root partition."
+  sudo e2fsck -f $root_partition \
+    || fail "Failed to check root filesystem."
+  sudo resize2fs $root_partition \
+    || fail "Failed to resize root filesystem."
+  sudo tune2fs -i 0 -c 0 $root_partition \
+    || fail "Failed to tune root filesystem."
 }
 
 
 create_home() {
   output "Getting storage parameters."
   read start end <<< $(
-    sudo parted $card_device unit s print free \
+    {
+      sudo parted $card_device unit s print free \
+        || fail "Failed to analyze device:  '${card_device}'"
+    } \
       | awk '/Free Space/ {print $1" "$2}' \
       | tail -n 1
   )
