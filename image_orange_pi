@@ -3,7 +3,9 @@
 image=~/images/orange_pi/Armbian_5.65_Orangepipcplus_Debian_stretch_next_4.14.78.img
 card_device=/dev/sdc
 root_partition="${card_device}1"
-home_partition="${card_device}2"
+big_partition="${card_device}2"
+label=motion
+mount_point=/var/lib/motion
 
 
 output() {
@@ -28,7 +30,7 @@ write_image() {
   # https://www.armbian.com/orange-pi-pc-plus/
   # https://dl.armbian.com/orangepipcplus/Debian_stretch_next.7z.torrent
   dd if=$image bs=1M | pv | sudo dd bs=1M of=$card_device || fail "Failed to write image."
-  sudo parted $card_device resizepart 1 10GB \
+  sudo parted $card_device resizepart 1 10240MB \
     || fail "Failed to resize root partition."
   sudo e2fsck -f $root_partition \
     || fail "Failed to check root filesystem."
@@ -39,28 +41,31 @@ write_image() {
 }
 
 
-create_home() {
+create_big_volume() {
   output "Getting storage parameters."
-  read start end <<< $(
-    {
-      sudo parted $card_device unit s print free \
-        || fail "Failed to analyze device:  '${card_device}'"
-    } \
-      | awk '/Free Space/ {print $1" "$2}' \
-      | tail -n 1
+  parted_output=$(
+    sudo parted $card_device unit s print free \
+      || fail "Failed to analyze device:  '${card_device}'"
   )
-  output "Writing home partition."
+
+#  read start end <<< $(
+#      awk '/Free Space/ {print $1" "$2}' \
+#      <<< $parted_output \
+#      | tail -n 1
+#  )
+  output "Writing big partition."
   # 'I' for Ignore, to ignore a warning about alignment.
-  echo I | sudo parted $card_device mkpart primary $start $end \
-    || fail "Failed to write home partition."
-  output "Writing home filesystem."
-  sudo mkfs.f2fs -l home $home_partition \
-    || fail "Failed to write home filesystem."
+  #echo I | sudo parted $card_device mkpart primary $start $end \
+  sudo parted $card_device mkpart primary 10241MB -- -1MB \
+    || fail "Failed to write big partition."
+  output "Writing big filesystem."
+  sudo mkfs.f2fs -l $label $big_partition \
+    || fail "Failed to write big filesystem."
 }
 
 
 configure_os() {
-  echo 'LABEL=home /home f2fs defaults,noatime,nodiratime 0 2' | sudo tee -a /mnt/card/etc/fstab \
+  echo "LABEL=${label} ${mount_point} f2fs defaults,noatime,nodiratime 0 2" | sudo tee -a /mnt/card/etc/fstab \
     || fail "Failed to write fstab."
 
   # Do this manually (once):
@@ -105,10 +110,7 @@ configure_os() {
 
   read wpa_psk < ~/sensitive/accounts/network/puppies/wpa_psk.txt \
     || fail "Failed to read WPA PSK."
-  {
-    sudo tee /mnt/card/etc/network/interfaces.d/wlan0 \
-      || fail "Failed to write:  interfaces.d/wlan0"
-  } << EOF
+  sudo tee /mnt/card/etc/network/interfaces.d/wlan0 << EOF
 iface wlan0 inet static
     wpa-essid           puppies
     wpa-psk             $wpa_psk
@@ -118,7 +120,9 @@ iface wlan0 inet static
     dns-nameservers     192.168.11.54
     dns-search          neuronpointer.net
 EOF
-
+  if ! test 0 == "${?}"; then
+    fail "Failed to write:  interfaces.d/wlan0" 
+  fi
   echo 'auto wlan0' | sudo tee -a /mnt/card/etc/network/interfaces \
     || fail "Failed to write to interfaces file."
 
@@ -152,7 +156,7 @@ main() {
       || fail "Failed to preparatively unmount /mnt/card."
   fi
   write_image
-  create_home
+  create_big_volume
   sudo mount $root_partition /mnt/card \
     || fail "Failed to mount card."
   configure_os
