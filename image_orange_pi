@@ -29,7 +29,8 @@ write_image() {
   output "Writing image."
   # https://www.armbian.com/orange-pi-pc-plus/
   # https://dl.armbian.com/orangepipcplus/Debian_stretch_next.7z.torrent
-  dd if=$image bs=1M | pv | sudo dd bs=1M of=$card_device || fail "Failed to write image."
+  dd if=$image bs=1M | pv | sudo dd bs=1M of=$card_device \
+    || fail "Failed to write image."
   sudo parted $card_device resizepart 1 10240MB \
     || fail "Failed to resize root partition."
   sudo e2fsck -f $root_partition \
@@ -48,14 +49,7 @@ create_big_volume() {
       || fail "Failed to analyze device:  '${card_device}'"
   )
 
-#  read start end <<< $(
-#      awk '/Free Space/ {print $1" "$2}' \
-#      <<< $parted_output \
-#      | tail -n 1
-#  )
   output "Writing big partition."
-  # 'I' for Ignore, to ignore a warning about alignment.
-  #echo I | sudo parted $card_device mkpart primary $start $end \
   sudo parted $card_device mkpart primary 10241MB -- -1MB \
     || fail "Failed to write big partition."
   output "Writing big filesystem."
@@ -81,18 +75,19 @@ configure_os() {
   for file in \
     /mnt/card/lib/systemd/system/armbian-firstrun-config.service \
     /mnt/card/lib/systemd/system/armbian-firstrun.service \
+    /mnt/card/lib/systemd/system/armbian-resize-filesystem.service \
+    /mnt/card/lib/systemd/system/NetworkManager.service \
     /mnt/card/usr/lib/armbian/armbian-firstrun-config \
     /mnt/card/usr/lib/armbian/armbian-firstrun \
     /mnt/card/etc/systemd/system/multi-user.target.wants/armbian-firstrun-config.service \
     /mnt/card/etc/profile.d/armbian-check-first-login.sh \
     /mnt/card/etc/profile.d/armbian-check-first-login-reboot.sh \
     /mnt/card/etc/systemd/system/multi-user.target.wants/armbian-firstrun-config.service \
-    /mnt/card/var/lib/systemd/deb-systemd-helper-enabled/multi-user.target.wants/NetworkManager.service \
     /mnt/card/etc/systemd/system/multi-user.target.wants/NetworkManager.service \
-    /mnt/card/lib/systemd/system/NetworkManager.service \
     /mnt/card/etc/systemd/system/default.target.wants/ssh.service \
-    /mnt/card/etc/ssh/ssh_host_*_key*
-  do
+    /mnt/card/etc/ssh/ssh_host_*_key* \
+    /mnt/card/var/lib/systemd/deb-systemd-helper-enabled/multi-user.target.wants/NetworkManager.service \
+  ; do
     sudo rm -f $file \
       || fail "Failed to remove:  ${file}"
   done
@@ -100,10 +95,11 @@ configure_os() {
   for file in \
     /mnt/card/lib/systemd/system/armbian-firstrun-config.service \
     /mnt/card/lib/systemd/system/armbian-firstrun.service \
+    /mnt/card/lib/systemd/system/armbian-resize-filesystem.service \
+    /mnt/card/lib/systemd/system/NetworkManager.service \
     /mnt/card/usr/lib/armbian/armbian-firstrun-config \
     /mnt/card/usr/lib/armbian/armbian-firstrun \
-    /mnt/card/lib/systemd/system/NetworkManager.service
-  do
+  ; do
     sudo ln -s /dev/null $file \
       || fail "Failed to mask service file:  '${file}'"
   done
