@@ -1,0 +1,39 @@
+#!/bin/bash
+# https://unix.stackexchange.com/questions/170961/get-total-duration-of-video-files-in-a-directory
+# https://unix.stackexchange.com/a/170973
+
+
+fail() {
+  echo "ERROR:  ${1}" >&2
+  exit 1
+}
+
+
+today=$(date +%Y%m%d)
+
+rm -rf ~/tmp/camera_today \
+  || fail "Failed to remove directory."
+mkdir -p ~/tmp/camera_today \
+  || fail "Failed to create directory."
+cp ~/mnt/spy/*-${today}*.avi ~/tmp/camera_today/ \
+  || fail "Failed to copy files."
+
+total_s=0
+for vf in ~/tmp/camera_today/*.avi; do
+  s=$(ffprobe -v quiet -of csv=p=0 -show_entries format=duration $vf 2>&1) \
+    || fail "Failed to ffprobe."
+  total_s=$(bc <<< "${total_s} + ${s}") \
+    || fail "Failed to add."
+done
+
+# https://stackoverflow.com/a/12199798/9116257
+hours=$( bc <<< "${total_s}/3600" ) \
+  || fail "Failed to get hours."
+minutes=$( bc <<< "${total_s}%3600/60" ) \
+  || fail "Failed to get minutes."
+seconds=$( bc <<< "${total_s}%60" ) \
+  || fail "Failed to get seconds."
+
+echo "You're looking at about ${hours}h${minutes}m${seconds}s of video, here."
+sleep 3
+mpv ~/tmp/camera_today/*.avi
