@@ -9,17 +9,12 @@ fail() {
 }
 
 
+source_dir=~/mnt/spy
 today=$(date +%Y%m%d)
-
-rm -rf ~/tmp/camera_today \
-  || fail "Failed to remove directory."
-mkdir -p ~/tmp/camera_today \
-  || fail "Failed to create directory."
-cp ~/mnt/spy/*-${today}*.avi ~/tmp/camera_today/ \
-  || fail "Failed to copy files."
+listing=$(ls -1tr $source_dir/*-${today}*.avi)
 
 total_s=0
-for vf in ~/tmp/camera_today/*.avi; do
+for vf in $listing; do
   s=$(ffprobe -v quiet -of csv=p=0 -show_entries format=duration $vf 2>&1) \
     || fail "Failed to ffprobe."
   total_s=$(bc <<< "${total_s} + ${s}") \
@@ -36,4 +31,4 @@ seconds=$( bc <<< "${total_s}%60" ) \
 
 echo "You're looking at about ${hours}h${minutes}m${seconds}s of video, here."
 sleep 3
-mpv ~/tmp/camera_today/*.avi
+mpv $listing
