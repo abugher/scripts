@@ -17,6 +17,9 @@ total_s=0
 for vf in $listing; do
   s=$(ffprobe -v quiet -of csv=p=0 -show_entries format=duration $vf 2>&1) \
     || fail "Failed to ffprobe."
+  if test 'N/A' == "${s}"; then
+    s=0
+  fi
   total_s=$(bc <<< "${total_s} + ${s}") \
     || fail "Failed to add."
 done
