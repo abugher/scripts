@@ -1,6 +1,7 @@
 #!/bin/bash
 
-image=~/images/orange_pi/Armbian_5.65_Orangepipcplus_Debian_stretch_next_4.14.78.img
+#image=~/images/orange_pi/Armbian_5.65_Orangepipcplus_Debian_stretch_next_4.14.78.img
+image=~/images/banana_pi/armbian.m2.img
 card_device=/dev/sdc
 root_partition="${card_device}1"
 big_partition="${card_device}2"
