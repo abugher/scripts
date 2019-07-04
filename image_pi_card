@@ -90,8 +90,8 @@ configure_os() {
 
   sudo sed -i "s#^root:.*\$#$(
     sudo grep "^${placeholder_user}" /etc/shadow \
-      | sed 's/orangepi/root/' \
-      || fail "failed to extract hash for root (orangepi)"
+      | sed "s/${placeholder_user}/root/" \
+      || fail "failed to extract hash for root (${placeholder_user})"
   )#" /mnt/card/etc/shadow \
     || fail "Failed to write root password."
 
