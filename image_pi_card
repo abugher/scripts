@@ -22,22 +22,16 @@ case "${target_host_name}" in
   partybus)
     image=~/images/banana_pi/armbian.m2.img
     card_device=/dev/sdc
-    root_partition="${card_device}1"
-    big_partition="${card_device}2"
     ip_address=192.168.11.64
     ;;
   files)
-    image=~/images/banana_pi/armbian.m2.img
-    card_device=/dev/mmcblk0
-    root_partition="${card_device}p1"
-    big_partition="${card_device}p2"
+    image=~/images/banana_pi/armbian.m1.img
+    card_device=/dev/sdb
     ip_address=192.168.11.62
     ;;
   spy)
     image=~/images/orange_pi/Armbian_5.65_Orangepipcplus_Debian_stretch_next_4.14.78.img
     card_device=/dev/sdc
-    root_partition="${card_device}1"
-    big_partition="${card_device}2"
     #ip_address=192.168.11.?
     fail "spy is not configured"
     ;;
@@ -46,6 +40,8 @@ case "${target_host_name}" in
     ;;
 esac
 
+root_partition="${card_device}1"
+big_partition="${card_device}2"
 label=motion
 mount_point=/var/lib/motion
 
