@@ -1,0 +1,63 @@
+#!/bin/bash
+# torrent { magnet_link | torrent_file }
+#
+# "Torrent that thing!"  Submit a torrent to a torrent client on a remote host.
+
+
+xmessageOptions="-center -buttons OK:0 -default OK"
+ssh_target=aaron@files
+credentials=transmission:password
+watch_dir=/storage/bittorrent/torrents
+now="$(date +%s)"
+
+
+function main {
+  string="${1}"
+  if echo "${string}" | grep -q '^magnet:'; then
+    magnet_link="${string}"
+    ssh "${ssh_target}" transmission-remote -n "${credentials}" -a "${magnet_link}" \
+    || fail "magnet link" "${magnet_link}" "${?}"
+    succeed "magnet link" "${magnet_link}"
+  else
+    torrent_file="${string}"
+    scp "${torrent_file}" "${ssh_target}:/tmp/${now}.torrent" \
+    || fail "torrent" "${torrent_file}" "${?}" "scp failed" 
+    ssh "${ssh_target}" transmission-remote -n "${credentials}" -a "/tmp/${now}.torrent" \
+    || fail "torrent" "${torrent_file}" "${?}" "transmission-remote (remote) failed" 
+    succeed "torrent" "${torrent_file}"
+  fi
+}
+
+
+function succeed {
+  type="${1}"
+  string="${2}"
+  xmessage -timeout 2 ${xmessageOptions} "Successfully added ${type}:
+
+  ${string}
+
+"
+}
+
+
+function fail {
+  type="${1}"
+  string="${2}"
+  ret="${3}"
+  message="${4}"
+  xmessage ${xmessageOptions} "Error:  Attempt to add ${type} returned status:  ${ret}
+
+Target:
+
+  ${string}
+
+Message:
+
+  ${message}
+"
+
+exit 1
+}
+
+
+main "${@}"

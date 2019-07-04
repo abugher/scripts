@@ -1,14 +1,5 @@
 #!/bin/bash
 
-#image=~/images/orange_pi/Armbian_5.65_Orangepipcplus_Debian_stretch_next_4.14.78.img
-image=~/images/banana_pi/armbian.m2.img
-card_device=/dev/sdc
-root_partition="${card_device}1"
-big_partition="${card_device}2"
-label=motion
-mount_point=/var/lib/motion
-
-
 output() {
   echo "OUTPUT:  ${1}"
 }
@@ -24,6 +15,28 @@ get_root() {
   output "We're going to need some root.  Authenticate for sudo."
   sudo -v || fail "Failed to get root."
 }
+
+
+target_host_name="${1}"
+case "${target_host_name}" in
+  partybus)
+    hostname=partybus
+    image=~/images/banana_pi/armbian.m2.img
+    ;;
+  spy)
+    hostname=spy
+    image=~/images/orange_pi/Armbian_5.65_Orangepipcplus_Debian_stretch_next_4.14.78.img
+    ;;
+  *)
+    fail "Unrecognized target host name:  '${target_host_name}'"
+    ;;
+esac
+
+card_device=/dev/sdc
+root_partition="${card_device}1"
+big_partition="${card_device}2"
+label=motion
+mount_point=/var/lib/motion
 
 
 write_image() {
@@ -120,7 +133,18 @@ EOF
   if ! test 0 == "${?}"; then
     fail "Failed to write:  interfaces.d/wlan0" 
   fi
-  echo 'auto wlan0' | sudo tee -a /mnt/card/etc/network/interfaces \
+  sudo tee /mnt/card/etc/network/interfaces.d/eth0 << EOF
+iface eth0 inet static
+    address             192.168.11.64
+    netmask             255.255.255.0
+    gateway             192.168.11.1
+    dns-nameservers     192.168.11.54
+    dns-search          neuronpointer.net
+EOF
+  if ! test 0 == "${?}"; then
+    fail "Failed to write:  interfaces.d/eth0" 
+  fi
+  echo 'auto eth0' | sudo tee -a /mnt/card/etc/network/interfaces \
     || fail "Failed to write to interfaces file."
 
   
@@ -140,9 +164,9 @@ EOF
     || fail "Failed to initialize SSH host key."
   sudo chmod 0600 /mnt/card/etc/ssh/ssh_host_rsa_key \
     || fail "Failed to set permissions on SSH host key."
-  cat ~/sensitive_ansible/inventory/hosts/spy/files/ssh_keys/ssh_host_rsa_key | sudo tee /mnt/card/etc/ssh/ssh_host_rsa_key \
+  cat ~/sensitive_ansible/inventory/hosts/${hostname}/files/ssh_keys/ssh_host_rsa_key | sudo tee /mnt/card/etc/ssh/ssh_host_rsa_key \
     || fail "Failed to write SSH host key (private)."
-  cat ~/ansible/inventory/hosts/spy/files/ssh_keys/ssh_host_rsa_key.pub | sudo tee /mnt/card/etc/ssh/ssh_host_rsa_key.pub \
+  cat ~/ansible/inventory/hosts/${hostname}/files/ssh_keys/ssh_host_rsa_key.pub | sudo tee /mnt/card/etc/ssh/ssh_host_rsa_key.pub \
     || fail "Failed to write SSH host key (public)."
 }
 
