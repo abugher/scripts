@@ -86,7 +86,7 @@ configure_os() {
     || fail "Failed to write fstab."
 
   # Do this manually (once):
-  #sudo passwd orangepi
+  #sudo passwd root-at-host
 
   sudo sed -i "s#^root:.*\$#$(
     sudo grep "^${placeholder_user}" /etc/shadow \
