@@ -20,18 +20,18 @@ get_root() {
 target_host_name="${1}"
 case "${target_host_name}" in
   partybus)
-    image=~/images/banana_pi/armbian.m2.img
     card_device=/dev/sdc
+    image=~/images/banana_pi/armbian.m2.img
     ip_address=192.168.11.64
     ;;
   files)
-    image=~/images/banana_pi/armbian.m1.img
     card_device=/dev/sdb
+    image=~/images/banana_pi/armbian.m1.img
     ip_address=192.168.11.62
     ;;
   spy)
-    image=~/images/orange_pi/Armbian_5.65_Orangepipcplus_Debian_stretch_next_4.14.78.img
     card_device=/dev/sdc
+    image=~/images/orange_pi/Armbian_5.65_Orangepipcplus_Debian_stretch_next_4.14.78.img
     #ip_address=192.168.11.?
     fail "spy is not configured"
     ;;
@@ -40,8 +40,10 @@ case "${target_host_name}" in
     ;;
 esac
 
+placeholder_user="root-at-${target_host_name}"
 root_partition="${card_device}1"
 big_partition="${card_device}2"
+
 label=motion
 mount_point=/var/lib/motion
 
@@ -87,7 +89,7 @@ configure_os() {
   #sudo passwd orangepi
 
   sudo sed -i "s#^root:.*\$#$(
-    sudo grep '^orangepi' /etc/shadow \
+    sudo grep "^${placeholder_user}" /etc/shadow \
       | sed 's/orangepi/root/' \
       || fail "failed to extract hash for root (orangepi)"
   )#" /mnt/card/etc/shadow \
