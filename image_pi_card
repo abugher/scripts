@@ -164,9 +164,9 @@ EOF
     || fail "Failed to initialize SSH host key."
   sudo chmod 0600 /mnt/card/etc/ssh/ssh_host_rsa_key \
     || fail "Failed to set permissions on SSH host key."
-  cat ~/sensitive_ansible/inventory/hosts/${hostname}/files/ssh_keys/ssh_host_rsa_key | sudo tee /mnt/card/etc/ssh/ssh_host_rsa_key \
+  cat ~/control_center/sensitive_ansible/inventory/hosts/${hostname}/files/ssh_keys/ssh_host_rsa_key | sudo tee /mnt/card/etc/ssh/ssh_host_rsa_key \
     || fail "Failed to write SSH host key (private)."
-  cat ~/ansible/inventory/hosts/${hostname}/files/ssh_keys/ssh_host_rsa_key.pub | sudo tee /mnt/card/etc/ssh/ssh_host_rsa_key.pub \
+  cat ~/control_center/ansible/inventory/hosts/${hostname}/files/ssh_keys/ssh_host_rsa_key.pub | sudo tee /mnt/card/etc/ssh/ssh_host_rsa_key.pub \
     || fail "Failed to write SSH host key (public)."
 }
 
