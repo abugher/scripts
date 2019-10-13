@@ -23,16 +23,23 @@ case "${target_host_name}" in
     card_device=/dev/sdc
     image=~/images/banana_pi/armbian.m2.img
     ip_address=192.168.11.64
+    label=log
+    mount_point=/var/log
     ;;
   files)
-    card_device=/dev/sdb
-    image=~/images/banana_pi/armbian.m1.img
+    card_device=/dev/sdc
+    #image=~/images/banana_pi/armbian.m1.img
+    image=~/images/odroid_hc1/Armbian_5.98_Odroidxu4_Debian_buster_default_4.14.141_minimal.img
     ip_address=192.168.11.62
+    label=log
+    mount_point=/var/log
     ;;
   spy)
     card_device=/dev/sdc
     image=~/images/orange_pi/Armbian_5.65_Orangepipcplus_Debian_stretch_next_4.14.78.img
     #ip_address=192.168.11.?
+    label=motion
+    mount_point=/var/lib/motion
     fail "spy is not configured"
     ;;
   *)
@@ -43,9 +50,6 @@ esac
 placeholder_user="root-at-${target_host_name}"
 root_partition="${card_device}1"
 big_partition="${card_device}2"
-
-label=motion
-mount_point=/var/lib/motion
 
 
 write_image() {
@@ -157,6 +161,8 @@ EOF
     || fail "Failed to write to interfaces file."
 
   
+  sudo mkdir -p /mnt/card/etc/ssh/ \
+    || fail "Failed to create ssh configuration directory."
   {
     sudo tee -a /mnt/card/etc/ssh/sshd_config \
       || fail "Failed to write to sshd_config."
@@ -166,6 +172,8 @@ HostKey /etc/ssh/ssh_host_rsa_key
 UsePam no
 EOF
 
+  sudo mkdir -p /mnt/card/etc/systemd/system/default.target.wants \
+    || fail "Failed to create some systemd bullshit directory."
   sudo ln -s /lib/systemd/system/ssh.service /mnt/card/etc/systemd/system/default.target.wants/ssh.service \
     || fail "Failed to write ssh service file."
 
@@ -181,7 +189,7 @@ EOF
 
 main() {
   get_root
-  if mountpoint /mnt/card; then
+  if mountpoint /mnt/card > /dev/null 2>&1; then
     sudo umount /mnt/card \
       || fail "Failed to preparatively unmount /mnt/card."
   fi
