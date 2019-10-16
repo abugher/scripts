@@ -103,7 +103,7 @@ configure_os() {
     /mnt/card/etc/profile.d/armbian-check-first-login-reboot.sh \
     /mnt/card/etc/profile.d/armbian-check-first-login.sh \
     /mnt/card/etc/ssh/ssh_host_*_key* \
-    /mnt/card/etc/systemd/network/99-default.link
+    /mnt/card/etc/systemd/network/99-default.link \
     /mnt/card/etc/systemd/system/default.target.wants/ssh.service \
     /mnt/card/etc/systemd/system/multi-user.target.wants/NetworkManager.service \
     /mnt/card/etc/systemd/system/multi-user.target.wants/armbian-firstrun-config.service \
@@ -121,7 +121,7 @@ configure_os() {
   done
 
   for file in \
-    /mnt/card/etc/systemd/network/99-default.link
+    /mnt/card/etc/systemd/network/99-default.link \
     /mnt/card/lib/systemd/system/armbian-firstrun-config.service \
     /mnt/card/lib/systemd/system/armbian-firstrun.service \
     /mnt/card/lib/systemd/system/armbian-resize-filesystem.service \
