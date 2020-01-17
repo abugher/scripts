@@ -1,0 +1,10 @@
+#!/bin/bash
+
+while sleep 30; do
+  xscreensaver-command -deactivate
+done & killer_pid=$!
+
+"${@}"
+
+kill "${killer_pid}"
+wait "${killer_pid}"
