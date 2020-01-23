@@ -6,8 +6,8 @@
 # published by Sam Hocevar. See WTFPL.txt or http://www.wtfpl.net/ for more
 # details.
 
-# It' mostly just xclip.
-xclip "${*}"
+# It's mostly just xclip.
+xclip "${@}"
 
 # Wait ...
 sleep 60

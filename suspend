@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# %sudo ALL= NOPASSWD: /usr/bin/tee /sys/power/state
+
+sudo /usr/bin/tee /sys/power/state <<< disk
