@@ -1,12 +1,11 @@
 #!/bin/bash
 # torrent { magnet_link | torrent_file }
 #
-# "Torrent that thing!"  Submit a torrent to a torrent client on a remote host.
-
+# "Torrent that thing!"
 
 xmessageOptions="-center -buttons OK:0 -default OK"
-ssh_target=aaron@files
-credentials=transmission:password
+ssh_target=ansible@files
+credentials=transmission:$(pass show shared/transmission)
 watch_dir=/storage/bittorrent/torrents
 now="$(date +%s)"
 
@@ -15,7 +14,7 @@ function main {
   string="${1}"
   if echo "${string}" | grep -q '^magnet:'; then
     magnet_link="${string}"
-    ssh "${ssh_target}" transmission-remote -n "${credentials}" -a "${magnet_link}" \
+    ssh "${ssh_target}" transmission-remote -n "${credentials}" -a "'${magnet_link}'" \
     || fail "magnet link" "${magnet_link}" "${?}"
     succeed "magnet link" "${magnet_link}"
   else
