@@ -1,0 +1,19 @@
+#!/bin/bash
+
+
+internal=LVDS-1
+external=VGA-1
+
+
+unset external_attached
+if xrandr | grep -v disconnected | grep -q ^"${external}"; then
+  external_attached=yes
+fi
+
+if test set = "${external_attached:+set}"; then
+  xrandr --output "${internal}" --off
+  xrandr --output "${external}" --auto
+else
+  xrandr --output "${external}" --off
+  xrandr --output "${internal}" --auto
+fi
