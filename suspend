@@ -1,5 +1,20 @@
 #!/bin/bash
 
+# Put one of these in sudoers:
 # %sudo ALL= NOPASSWD: /usr/bin/tee /sys/power/state
+# %sudo   ALL=(root:root) NOPASSWD: /usr/bin/tee /sys/power/state
 
-sudo /usr/bin/tee /sys/power/state <<< disk
+unset state
+states=( $(cat /sys/power/state) )
+for s in "${states[@]}"; do
+  if test "${1}" = "${s}"; then
+    state="${s}"
+  fi
+done
+if ! test 'set' = "${state:+set}"; then
+  echo "Unrecognized state:  ${1}" >&2
+  exit 1
+fi
+
+sudo /usr/bin/tee /sys/power/state <<< "${state}"
+~/bin/monitors
