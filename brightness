@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# %sudo   ALL=(root:root) NOPASSWD: /usr/bin/tee /sys/class/backlight/intel_backlight/brightness
+
+function fail() {
+  printf '%s\n' "${1}" >&2
+  exit 1
+}
+
+
+brightness_file='/sys/class/backlight/intel_backlight/brightness'
+increment=30
+
+current_brightness="$(cat "${brightness_file}")" \
+  || fail "Failed to read current brightness."
+grep -qE '^[0-9]+' <<< "${current_brightness}" \
+  || fail "Invalide current brightness:  ${current_brightness}"
+
+test 'set' = "${1:+set}" \
+  || fail "Usage:  $0 up|down"
+direction="${1}"
+if test 'up' = "${direction}"; then
+  new_brightness="$(( current_brightness + increment ))"
+elif test 'down' = "${direction}"; then
+  new_brightness="$(( current_brightness - increment ))"
+else
+  fail "Invalid direction:  ${direction}"
+fi
+
+sudo /usr/bin/tee "${brightness_file}" <<< "${new_brightness}"
