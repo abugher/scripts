@@ -12,7 +12,7 @@ source function_new_food.sh
 FOOD="x"
 TALLY="0"
 DATE="$(date "+%Y%m%d")"
-TAB="days/${DATE}"
+TAB="state/days/${DATE}"
 
 if [ -f "${TAB}" ]
 then
@@ -40,14 +40,14 @@ then
         fi
       done
 
-      # Handle new foods.  This shouldn't happen, but, eh ...
-      if [ ! -f foods/"${FOOD}" ]
+      # Handle new state/foods.  This shouldn't happen, but, eh ...
+      if [ ! -f state/foods/"${FOOD}" ]
       then
         new_food "${FOOD}"
       fi
 
       # Get points per serving.
-      POINTS_PER_SERVING=$(cat foods/"${FOOD}")
+      POINTS_PER_SERVING=$(cat state/foods/"${FOOD}")
 
       # Do the math.
       POINTS=$(
@@ -89,7 +89,7 @@ do
   fi
 
   # Check for new food.
-  if [ ! -f foods/"${FOOD}" ]
+  if [ ! -f state/foods/"${FOOD}" ]
   then
     $e "Unknown food.  Please define.\n\n"
     new_food "${FOOD}"
@@ -108,7 +108,7 @@ do
   fi
 
   # Get points per serving.
-  POINTS_PER_SERVING=$(cat foods/"${FOOD}")
+  POINTS_PER_SERVING=$(cat state/foods/"${FOOD}")
 
   # Do the math.
   POINTS=$(

@@ -44,5 +44,5 @@ function new_food
   $e "                            Points:  ${POINTS}\n"
 
   # Save the points per serving for this food.
-  echo "${POINTS}" > foods/"${FOOD}"
+  echo "${POINTS}" > state/foods/"${FOOD}"
 }
