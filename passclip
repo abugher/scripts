@@ -6,14 +6,18 @@ clipboard_timeout="60s"
 function main() {
   # It' mostly just xclip.
   output "Fetching password."
-  xclip < <(pass show "${*}")
+  xclip < <(pass show "${1}")
   output "Password retrieved.  Paste in the next:  ${clipboard_timeout}"
 
   # Wait ...
   sleep "${clipboard_timeout}"
 
-  output "Time expired."
   # Now get that password off the clipboard.
+  # 
+  # The password doesn't seem to remain on the clipboard if this program is
+  # killed before it can clear the clipboard.  I guess that's just how the X
+  # clipboard system works.
+  output "Time expired."
   echo '' | xclip
   output "Clipboard cleared."
 }
@@ -42,4 +46,4 @@ function fail() {
 
 name="${0##*/}"
 prefix="${name}"
-main
+main "${@}"
