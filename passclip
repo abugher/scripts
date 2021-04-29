@@ -1,16 +1,45 @@
 #!/bin/bash
 
-# This program is free software. It comes without any warranty, to the extent
-# permitted by applicable law. You can redistribute it and/or modify it under
-# the terms of the Do What The Fuck You Want To Public License, Version 2, as
-# published by Sam Hocevar. See WTFPL.txt or http://www.wtfpl.net/ for more
-# details.
+clipboard_timeout="60s"
 
-# It's mostly just xclip.
-xclip "${@}"
 
-# Wait ...
-sleep 60
+function main() {
+  # It' mostly just xclip.
+  output "Fetching password."
+  xclip < <(pass show "${*}")
+  output "Password retrieved.  Paste in the next:  ${clipboard_timeout}"
 
-# Now get that password off the clipboard.
-echo '' | xclip
+  # Wait ...
+  sleep "${clipboard_timeout}"
+
+  output "Time expired."
+  # Now get that password off the clipboard.
+  echo '' | xclip
+  output "Clipboard cleared."
+}
+
+
+function output() {
+  printf "%s:  %s\n" "${prefix}" "${*}"
+}
+
+
+function warn() {
+  output "WARNING:  ${*}" 2>&1
+}
+
+
+function error() {
+  output "ERROR:  ${*}" 2>&1
+}
+
+
+function fail() {
+  error "${*}"
+  exit 1
+}
+
+
+name="${0##*/}"
+prefix="${name}"
+main
