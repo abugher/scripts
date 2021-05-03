@@ -1,0 +1,93 @@
+NAME
+
+  chunk - Divide input into multi-line chunks.
+
+
+SYNOPSIS
+
+  chunk [-f <output filter>] [-s 'a'|'n'] [-n|-N <max chunks>] [-r] 
+    [-S <output separator>] [-0] <input separator>
+
+
+DESCRIPTION
+
+  chunk will read stdin into chunks.  input separator will be used as a filter
+  for grep in regular expression mode, and every line matching will be treated
+  as the first line of a chunk.  Each subsequent line not matching input
+  separator will be appended to that chunk, until input separator is encountered
+  again.
+
+  By default, all chunks will be output.
+
+  If -f is specified, output filter will be used as a filter for grep in regular
+  expression mode, matched against the first line of each chunk.  Any chunk not
+  matching will be discarded before sorting, limiting to max chunks, or
+  reversing.
+
+  If -s and a sort method are specified, output will be sorted by the first line
+  of each chunk, aphabetically or numerically, corresponding to sort method
+  specifiers 'a' and 'n', respectively, after filtering, before limiting to max
+  chunks, and before reversing.
+
+  If -n or -N is specified, output will be limited to at most max chunks chunks,
+  after filtering, after sorting, and before reversing.  If -n is specified,
+  output is limited starting from the first chunk.  If -N is specified, output
+  is limited ending with the last chunk.  All other chunks will be discarded.
+
+  If -r is specified, the output order of chunks will be reversed, after
+  filtering, after sorting, and after limiting to max chunks.
+  
+  If -S is specified, output separator will be output before every chunk.
+
+  Any lines before the first line matching input separator are considered "chunk
+  zero", and are discarded by default.  If -0 (dash zero) is specified, chunk
+  zero is not discarded.  If present, chunk zero is not subject to the output
+  filter, nor to sorting, instead remaining the first chunk, but does count
+  toward max chunks if within the range specified.  If -r is specified, chunk
+  zero, if present, becomes the last chunk.
+
+  If redundant or conflicting options are specified, the last instance will take
+  effect.
+
+
+EXAMPLES
+
+  chunk '^[A-Z]+$' < doc/chunk
+
+    Output every section of this document, in original order.  Equivalent to
+    cat.
+
+  chunk -f '^DESCRIPTION$' '^[A-Z]+$' < doc/chunk
+    
+    Output only the DESCRIPTION section of this document.
+
+  chunk -n 2 '^[A-Z]+$' < doc/chunk
+    
+    Output the first two sections of this document, NAME and SYNOPSIS.
+
+  chunk -s a -n 1 '^[A-Z]+$' < doc/chunk
+    
+    Output the section of this document with the heading coming first in
+    alphabetical order, BUGS.
+
+  chunk -n 2 -r '^[A-Z]+$' < doc/chunk
+    
+    Output the first two sections of this document, in reverse order, SYNOPSIS
+    then NAME.
+
+  chunk -N 2 -r '^[A-Z]+$' < doc/chunk
+
+    Output the last two sections of this document, in reverse order, BUGS then
+    EXAMPLES.
+
+
+BUGS
+  
+  Some arguments are passed to grep, unfiltered and unvalidated, as part of a
+  command line.  This almost certainly presents opportunity for command
+  injection.  Do not make this program SUID, available to limited sudoers, or
+  otherwise allow one user to execute it in the name of another.
+
+  I abuse the letter 'i' in the code.  It always represents an array index, but
+  sometimes it is the index of an array of headers, and sometimes it is the
+  index of an array of indices of an array of headers.  It's an i sore.

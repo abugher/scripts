@@ -1,0 +1,270 @@
+#!/bin/bash
+
+
+function chunk() {
+  # Prepare operational parameters.
+  unset sort
+  unset max_chunks
+  unset input_separator
+  unset output_filter
+  unset output_separator
+  unset reverse_order
+  unset chunk_zero
+  chunk_set='all'
+
+  # Parse and validate arguments.
+  while ! test 0 = "${#}"; do
+    arg="${1}"
+    shift 1
+    case "${arg}" in
+      '-f')
+        output_filter="${1}"
+        if ! shift 1; then
+          usage
+          fail "Missing output filter."
+        fi
+        ;;
+      '-s')
+        sort="${1}"
+        if ! shift 1; then
+          usage
+          fail "Missing sort method specification."
+        fi
+        case "${sort}" in
+          'a')
+            sort='sort'
+            ;;
+          'n')
+            sort='sort -n'
+            ;;
+          *)
+            fail "Unknown sort mode:  ${sort}"
+            ;;
+        esac
+        ;;
+      '-n')
+        chunk_set='first'
+        ;&
+      '-N')
+        # Ugly, but preserves last-match-wins, as defined in usage doc.
+        if test '-N' = "${arg}"; then
+          chunk_set='last'
+        fi
+        max_chunks="${1}"
+        if ! shift 1; then
+          usage
+          fail "Missing chunks count."
+        fi
+        if 
+          ! grep -qE '^[0-9]+$' <<< "${max_chunks}" \
+            || ! test '1' = "$(wc -l <<< "${max_chunks}")"
+        then
+          usage
+          fail "Invalid chunks count:  ${max_chunks}"
+        fi
+        ;;
+      '-r')
+        reverse_order='yes'
+        ;;
+      '-S')
+        output_separator="${1}"
+        if ! shift 1; then
+          usage
+          fail "Missing sort method specification."
+        fi
+        ;;
+      '-0')
+        chunk_zero='yes'
+        ;;
+      *)
+        if ! test 'set' = "${input_separator:+set}"; then
+          input_separator="${arg}"
+        else
+          usage
+          fail "Unreconized extra argument:  ${arg}"
+        fi
+        ;;
+    esac
+  done
+
+  if ! test 'set' = "${input_separator:+set}"; then
+    usage
+    fail "No input separator specified."
+  fi
+  
+  # Read into chunks.
+  unset chunks
+  chunks=()
+  i=0
+  while IFS= read line; do
+    if grep -qE "${input_separator}" <<< "${line}"; then
+      i="$(( i + 1 ))"
+      chunks["${i}"]="${line}"
+    elif 
+      test 0 -eq "${i}" &&
+        ! test 'set' = "${chunks[0]:+set}"
+    then
+      chunks["${i}"]="${line}"
+    else
+      chunks["${i}"]="${chunks["${i}"]}"$'\n'"${line}"
+    fi
+  done
+
+  # Filter.
+  unset filtered_indices
+  unset all_indices
+  unset all_indices_except_zero
+  if test 'set' = "${output_filter:+set}"; then
+    filtered_indices=()
+    all_indices=( "${!chunks[@]}" )
+    if test 'set' = "${chunks[0]:+set}"; then
+      # Skip chunk zero.
+      all_indices_except_zero=( "${all_indices[@]:1}" )
+    else
+      all_indices_except_zero=( "${all_indices[@]}" )
+    fi
+    for i in "${all_indices_except_zero[@]}"; do
+      if test 0 -eq "${i}"; then
+        continue
+      fi
+      if head -n 1 <<< "${chunks["${i}"]}" | grep -qE "${output_filter}"; then
+        filtered_indices+=( "${i}" )
+      fi
+    done
+  else
+    all_indices=( "${!chunks[@]}" )
+    if test 'set' = "${chunks[0]:+set}"; then
+      # Skip chunk zero.
+      filtered_indices=( "${all_indices[@]:1}" )
+    else
+      filtered_indices=( "${all_indices[@]}" )
+    fi
+  fi
+
+  # Sort.
+  unset sorted_indices
+  sorted_indices=()
+  if test 'set' = "${sort:+set}"; then
+    # Reverse-index for sorting.
+    unset indices_by_header
+    declare -A indices_by_header
+    unset indices_with_empty_header
+    indices_with_empty_header=()
+
+    # Reintroduce chunk zero.
+    if 
+      test 'set' = "${chunks[0]:+set}" \
+        && test 'set' = "${chunk_zero:+set}"
+    then
+      indices_with_empty_header+=( 0 )
+    fi
+    
+    for i in "${filtered_indices[@]}"; do
+      # Allow for chunks with duplicate headers.
+      header="$( head -n 1 <<< "${chunks["${i}"]}" )"
+      if test '' = "${header}"; then
+        indices_with_empty_header="${indices_with_empty_header}"$'\n'"${i}"
+      else
+        indices_by_header["${header}"]="${indices_by_header["${header}"]}"$'\n'"${i}"
+      fi
+    done
+
+    # Empty headers can't be sorted as hash keys, because empty keys are not
+    # allowed.  Shorter values sort first, though, and empty values are
+    # shortest, so just push the indices of chunks with empty headers to the
+    # sorted list before the values that actually get sorted.
+    sorted_indices+=(
+      "${indices_with_empty_headers[@]}"
+    ) 
+    # Sort headers, record sorted indices.
+    sorted_indices+=( 
+      $(
+        for header in "${!indices_by_header[@]}"; do
+          printf '%s\n' "${header}"
+        done \
+          | $sort \
+          | while read header; do
+            printf "%s\n" "${indices_by_header["${header}"]}"
+          done
+      )
+    )
+  else
+    # Reintroduce chunk zero.
+    if 
+      test 'set' = "${chunks[0]:+set}" \
+        && test 'set' = "${chunk_zero:+set}"
+    then
+      sorted_indices=(
+        0
+      )
+    fi
+    sorted_indices+=(
+      "${filtered_indices[@]}"
+    )
+  fi
+
+  # Limit.
+  unset limited_indices
+
+  if 
+    ! test 'all' = "${chunk_set}" \
+    && test "${#sorted_indices[@]}" -lt "${max_chunks}"
+  then
+    limited_indices=( "${sorted_indices[@]}" )
+  else
+    case "${chunk_set}" in
+      'all')
+        limited_indices=( "${sorted_indices[@]}" )
+        ;;
+      'first')
+        limited_indices=()
+        for i in $( 
+          seq \
+            0 \
+            $(( max_chunks - 1 ))
+        ); do
+          limited_indices+=( "${sorted_indices["${i}"]}" )
+        done
+        ;;
+      'last')
+        limited_indices=()
+        for i in $( 
+          seq \
+            $(( ${#sorted_indices[@]} - max_chunks )) \
+            $(( ${#sorted_indices[@]} - 1 ))
+        ); do
+          limited_indices+=( "${sorted_indices["${i}"]}" )
+        done
+        ;;
+      *)
+        fail "Unrecognized value for \$chunk_set:  ${chunk_set}"
+        ;;
+    esac
+  fi
+
+  # Reverse.
+  unset final_indices
+  if test 'set' = "${reverse_order:+set}"; then
+    final_indices=()
+    for i in $(
+      seq \
+        "$(( ${#limited_indices[@]} - 1 ))" \
+        -1 \
+        0
+    ); do
+      final_indices+=( "${limited_indices["${i}"]}" )
+    done
+  else
+    final_indices=( "${limited_indices[@]}" )
+  fi
+
+  # Output.
+  for i in "${final_indices[@]}"; do
+    # This is a pipeline-oriented program, so avoid the output function, as it
+    # prefixes every line with some cruft.
+    if test 'set' = "${output_separator:+set}"; then
+      printf '%s\n' "${output_separator}"
+    fi
+    printf '%s\n' "${chunks["${i}"]}"
+  done
+}
