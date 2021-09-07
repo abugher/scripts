@@ -51,7 +51,7 @@ for hack in $HACK_DIR/*; do
     continue
   fi
 
-  # Lauch the hack, then judge.
+  # Launch the hack, then judge.
   while true; do
     echo "Showing '${hack_name}'."
     $hack 2>/dev/null
