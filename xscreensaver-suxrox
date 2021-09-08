@@ -43,19 +43,36 @@ compliant () {
 for hack in $HACK_DIR/*; do 
   hack_name=$(echo $hack | sed 's/.*\///')
 
-  # Check that the hack has not been judged, and looks likely to behave.
+  # Check that the hack has not been judged.
   if 
-    grep -q "^${hack_name}$" $SUXROXED ||
-    ! compliant $hack
+    grep -q "^${hack_name}$" $SUXROXED
   then
     continue
+  fi
+
+  # Check that the hack looks likely to behave.
+  if ! compliant $hack; then
+    echo "${hack}"
+    read -p "The hack named \"${hack}\" seems weird.  'q' may not quit.  Action ( [S]ux, [i]gnore, [t]ry ):  " -n 1 response
+    case $response in
+      'i')
+        continue
+        ;;
+      't')
+        true
+        ;;
+      *)
+        judge_hack $hack_name sux
+        continue
+        ;;
+    esac
   fi
 
   # Launch the hack, then judge.
   while true; do
     echo "Showing '${hack_name}'."
     $hack 2>/dev/null
-    read -p "Judgement ( [s]ux, [r]ox, [a]gain ):  " -n 1 response
+    read -p "Judgement ( [s]ux, [r]ox, [A]gain ):  " -n 1 response
     echo
     case $response in
       'r')
