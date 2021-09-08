@@ -31,10 +31,14 @@ judge_hack () {
   if ! grep -Eq "^..*${TAB}${hack_name} " $XSS_CONF_FILE; then
     # xscreensaver-demo will update the configuration with all available hacks.
     timeout 1 xscreensaver-demo
-    if ! grep -Eq "^..*${TAB}${hack_name} " $XSS_CONF_FILE; then
-      echo "Cannot update .xscreensaver using xscreensaver-demo."
-      exit 1
-    fi
+    # Don't fail when the line doesn't show up.  There is at least one file,
+    # /usr/lib/xscreensaver/ljlatest, controlled by the package manager, that
+    # xscreensaver-demo never lists in the config.
+    #
+#    if ! grep -Eq "^..*${TAB}${hack_name} " $XSS_CONF_FILE; then
+#      echo "Cannot update .xscreensaver using xscreensaver-demo."
+#      exit 1
+#    fi
   fi
 
   # Enable or disable hack.
