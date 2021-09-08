@@ -27,6 +27,16 @@ judge_hack () {
     prefix='-'
   fi
 
+  # Check for configuration line.
+  if ! grep -Eq "^..*${TAB}${hack_name} " $XSS_CONF_FILE; then
+    # xscreensaver-demo will update the configuration with all available hacks.
+    timeout 1 xscreensaver-demo
+    if ! grep -Eq "^..*${TAB}${hack_name} " $XSS_CONF_FILE; then
+      echo "Cannot update .xscreensaver using xscreensaver-demo."
+      exit 1
+    fi
+  fi
+
   # Enable or disable hack.
   sed -i -E "s/^.(.*${TAB}${hack_name} )/${prefix}\\1/" $XSS_CONF_FILE
 
