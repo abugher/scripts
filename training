@@ -1,0 +1,86 @@
+#!/bin/bash
+
+
+function main() {
+  trains=0
+  while sl -e"$(random_args)"; do
+    trains=$(( trains + 1 ))
+  done
+  echo "You watched ${trains} trains, you pathetic slacker."
+}
+
+function sl() {
+  "${sl}" "${@}"
+}
+
+
+function find_sl() {
+  type -a sl \
+    | awk '/^sl is \// {print $3}' \
+    | while read sl; do
+      if test -f "${sl}" && ! test -h "${sl}"; then
+        echo "${sl}"
+        break
+      fi
+    done
+}
+
+
+function random_args() {
+  # little
+  if dice_check 17 20; then
+    echo -n 'l'
+  fi
+  # flying
+  if dice_check 1 10; then
+    echo -n 'F'
+  fi
+  # accident
+  if dice_check 1 10; then
+    echo -n 'a'
+  fi
+}
+
+
+function dice_check() {
+  # Return true $1 / $2 of the time.
+  dividend="${1}"
+  divisor="${2}"
+  min="$(( divisor - dividend ))"
+  random=
+  # If I ask for 25 / 75, and I take a random number 0-100 % 75, there is a 50%
+  # chance the result is in the first 33.3...% of the range.  Fixing that correctly
+  # sounds tedious, so let's throw orders of magnitude at it until no one cares
+  # about the discrepancy.  (Take random number 0-100,000, instead.)
+  random_digit_count=$(( ${#divisor} + 3 ))
+  while test "${#random}" -lt "${random_digit_count}"; do
+    random="${random}$(digit)"
+  done
+  random=$(( random % divisor ))
+  if ! test "${random}" -ge "${min}"; then
+    false
+  fi
+}
+
+
+function digit() {
+  echo "$(( $(byte_num) % 10 ))"
+}
+
+
+function byte_num() {
+  # This might not work as expected with more than one byte of input.
+  byte_raw \
+    | od -w4 -i \
+    | head -n -1 \
+    | sed -E 's/^[0-9]{7} *//'
+}
+
+
+function byte_raw() {
+  dd if=/dev/urandom bs=1 count=1 2>/dev/null
+}
+
+
+sl="$(find_sl)"
+main
