@@ -5,15 +5,16 @@ ssh_target=ansible@files
 credentials=transmission:$(pass show shared/transmission)
 watch_dir=/storage/bittorrent/torrents
 content_dir=/storage/bittorrent/content/
+exceptions=(
+  "radio.m3u"
+  "nightvale"
+)
+
 now="$(date +%s)"
 
 
 function main {
   # These aren't torrents, but shouldn't be deleted.
-  exceptions=(
-    "radio.m3u"
-    "nightvale"
-  )
   names=( "${exceptions[@]}" )
   files=()
   orphans=()
@@ -42,8 +43,6 @@ function main {
     for name in "${names[@]}"; do
       if test "${file}" == "${name}"; then
         orphan="no"
-#        printf "DEBUG:  \$file=${file}"
-#        printf "DEBUG:  \$name=${name}"
         # Efficiency might be improved by removing already matched names from the array, here.
         break
       fi
@@ -54,14 +53,14 @@ function main {
     fi
   done
 
+  # Do not delete the whole content directory, please.
   for orphan in "${orphans[@]}"; do
-#    printf 'orphan:  %s\n' "${orphan}"
     if ! grep -q . <<< "${orphan}"; then
-      # Do not delete the whole content directory, please.
       continue
     fi
+    printf 'Removing orphan:  "%s"' "${orphan}"
 #    ssh -t "${ssh_target}" "cd '${content_dir}'; sudo -u debian-transmission rm -rf '${orphan}'"
-    ssh -t "${ssh_target}" "cd '${content_dir}'; sudo rm -rf '${orphan}'"
+    ssh -t "${ssh_target}" "cd '${content_dir}'; sudo rm -rf '${orphan}'" || fail "Failed to remove orphaned content."
   done
 
 }
