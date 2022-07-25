@@ -1,15 +1,20 @@
 #!/bin/bash
 # torrent-cleanup
 
-xmessageOptions="-center -buttons OK:0 -default OK"
 ssh_target=ansible@files
 credentials=transmission:$(pass show shared/transmission)
 watch_dir=/storage/bittorrent/torrents
+content_dir=/storage/bittorrent/content/
 now="$(date +%s)"
 
 
 function main {
-  names=()
+  # These aren't torrents, but shouldn't be deleted.
+  exceptions=(
+    "radio.m3u"
+    "nightvale"
+  )
+  names=( "${exceptions[@]}" )
   files=()
   orphans=()
 
@@ -24,7 +29,7 @@ function main {
   while read file; do
     files+=( "${file}" )
   done < <(
-    ssh "${ssh_target}" ls /storage/bittorrent/content/ \
+    ssh "${ssh_target}" ls "${content_dir}" \
       | sort
   )
 
@@ -33,6 +38,7 @@ function main {
     for name in "${names[@]}"; do
       if test "${file}" == "${name}"; then
         orphan="no"
+        # Searching may be optimized by removing already matched names from the array.
         break
       fi
     done
@@ -45,37 +51,7 @@ function main {
   for orphan in "${orphans[@]}"; do
     printf 'orphan:  %s\n' "${orphan}"
   done
-}
 
-
-function succeed {
-  type="${1}"
-  string="${2}"
-  xmessage -timeout 2 ${xmessageOptions} "Successfully added ${type}:
-
-  ${string}
-
-"
-}
-
-
-function fail {
-  type="${1}"
-  string="${2}"
-  ret="${3}"
-  message="${4}"
-  xmessage ${xmessageOptions} "Error:  Attempt to add ${type} returned status:  ${ret}
-
-Target:
-
-  ${string}
-
-Message:
-
-  ${message}
-"
-
-exit 1
 }
 
 
