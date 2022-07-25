@@ -26,6 +26,10 @@ function main {
       | sort
   )
 
+  # What are the exact mechanics of read?  I think this would truncate trailing
+  # spaces in file names, for example.  Then again, it should still work unless
+  # two filenames are identical except the number of trailing spaces, since the
+  # other read statement will also truncate them.
   while read file; do
     files+=( "${file}" )
   done < <(
@@ -38,7 +42,9 @@ function main {
     for name in "${names[@]}"; do
       if test "${file}" == "${name}"; then
         orphan="no"
-        # Searching may be optimized by removing already matched names from the array.
+#        printf "DEBUG:  \$file=${file}"
+#        printf "DEBUG:  \$name=${name}"
+        # Efficiency might be improved by removing already matched names from the array, here.
         break
       fi
     done
@@ -49,7 +55,13 @@ function main {
   done
 
   for orphan in "${orphans[@]}"; do
-    printf 'orphan:  %s\n' "${orphan}"
+#    printf 'orphan:  %s\n' "${orphan}"
+    if ! grep -q . <<< "${orphan}"; then
+      # Do not delete the whole content directory, please.
+      continue
+    fi
+#    ssh -t "${ssh_target}" "cd '${content_dir}'; sudo -u debian-transmission rm -rf '${orphan}'"
+    ssh -t "${ssh_target}" "cd '${content_dir}'; sudo rm -rf '${orphan}'"
   done
 
 }
