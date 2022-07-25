@@ -1,13 +1,8 @@
 #!/bin/bash
 # untorrent { regex }
-#
-# "Torrent that thing!"
 
-xmessageOptions="-center -buttons OK:0 -default OK"
 ssh_target=ansible@files
 credentials=transmission:$(pass show shared/transmission)
-watch_dir=/storage/bittorrent/torrents
-now="$(date +%s)"
 
 
 function main {
@@ -29,37 +24,6 @@ function main {
     echo "Analyzing:  '${index}'"
     ssh "${ssh_target}" transmission-remote -n "${credentials}" -t "${index}" --remove-and-delete
   done;
-}
-
-
-function succeed {
-  type="${1}"
-  string="${2}"
-  xmessage -timeout 2 ${xmessageOptions} "Successfully added ${type}:
-
-  ${string}
-
-"
-}
-
-
-function fail {
-  type="${1}"
-  string="${2}"
-  ret="${3}"
-  message="${4}"
-  xmessage ${xmessageOptions} "Error:  Attempt to add ${type} returned status:  ${ret}
-
-Target:
-
-  ${string}
-
-Message:
-
-  ${message}
-"
-
-exit 1
 }
 
 
