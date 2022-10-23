@@ -1,0 +1,103 @@
+#!/bin/bash
+
+factor=10
+interval=1
+# output width
+ow=8
+
+
+function main() {
+  while sleep "${interval}"; do
+    check_threshold
+  done
+}
+
+
+function check_threshold() {
+  stamp_start
+
+  read \
+    title \
+    total \
+    used \
+    free \
+    other \
+  < <(_free)
+
+  if test $free -lt $(( total / factor )); then 
+    report
+  fi
+
+  stamp_end
+}
+
+
+function report() {
+  read \
+    pid \
+    user \
+    pr \
+    ni \
+    virt \
+    res \
+    shr \
+    state \
+    cpu \
+    mem \
+    time \
+    command \
+  < <(_top)
+
+  printf "\n"
+
+  printf \
+    "Mem:  %${ow}d M\nFree: %${ow}d M\n" \
+    "${total}" \
+    "${free}"
+
+  printf "\n"
+
+  printf \
+    "PID:  %${ow}d\nRes:  %${ow}d K\nCmd:  %s\n" \
+    "${pid}" \
+    "${res}" \
+    "${command}"
+
+  printf "\n"
+  ps -lfp "${pid}"
+
+  printf "\n"
+  top -b -n 1 -p "${pid}"
+
+  printf "\n"
+}
+
+
+function _free() {
+  free -m \
+    | tail -n +2 \
+    | head -n -1
+}
+
+
+function _top() {
+  top -b -n 1 -o %MEM \
+    | tail -n +8 \
+    | head -n 1 \
+    | sed 's/^ *//'
+}
+
+
+function stamp_start() {
+  printf "START:  "
+  date --iso-8601=second
+}
+
+
+function stamp_end() {
+  printf "END:  "
+  date --iso-8601=second
+}
+
+
+main
