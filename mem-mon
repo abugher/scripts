@@ -14,7 +14,6 @@ function main() {
 
 
 function check_threshold() {
-  stamp_start
 
   read \
     title \
@@ -28,11 +27,12 @@ function check_threshold() {
     report
   fi
 
-  stamp_end
 }
 
 
 function report() {
+  stamp_start
+
   read \
     pid \
     user \
@@ -70,6 +70,8 @@ function report() {
   top -b -n 1 -p "${pid}"
 
   printf "\n"
+
+  stamp_end
 }
 
 
