@@ -1,0 +1,53 @@
+#!/bin/bash
+
+# It's not everything, but I'm just trying to get a rough picture.
+scan_targets=(
+  /bin
+  /sbin
+  /lib
+  /libexec
+  /usr/bin
+  /usr/sbin
+  /usr/lib
+  /usr/libexec
+)
+
+search_terms=()
+
+orphans=()
+
+echo "Scanning." >&2
+for scan_target in "${scan_targets[@]}"; do
+  for search_term in "${scan_target}"/*; do
+    if grep -q . <<< "${search_term}" && ! grep -q '\*$' <<< "${search_term}"; then
+      search_terms+=( "${search_term}" )
+    fi
+  done
+done
+
+
+echo "${#search_terms[@]} files for which to search." >&2
+c=0
+i=0
+for search_term in "${search_terms[@]}"; do
+  c=$(( c + 1 ))
+  i=$(( i + 1 ))
+  if test -h "${search_term}"; then
+    echo -n '.' >&2
+  elif ! dpkg -S "${search_term}" >/dev/null 2>&1; then
+    orphans+=( "${search_term}" )
+    echo -n 'X' >&2
+  else
+    echo -n '.' >&2
+  fi
+  if test "${c}" -eq 60; then
+    c=0
+    echo "  ${#orphans[@]}/${i}/${#search_terms[@]}" >&2
+  fi
+done
+
+echo >&2
+
+for orphan in "${orphans[@]}"; do
+  echo "${orphan}"
+done
