@@ -1,0 +1,5 @@
+#!/bin/bash
+# noisily do_something
+
+"$@" && { aplay -q ~/.smw_powerup.wav & } \
+  || { aplay -q ~/.smw_death.wav & }
