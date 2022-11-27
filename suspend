@@ -4,17 +4,48 @@
 # %sudo ALL= NOPASSWD: /usr/bin/tee /sys/power/state
 # %sudo   ALL=(root:root) NOPASSWD: /usr/bin/tee /sys/power/state
 
-unset state
-states=( $(cat /sys/power/state) )
-for s in "${states[@]}"; do
-  if test "${1}" = "${s}"; then
-    state="${s}"
-  fi
-done
-if ! test 'set' = "${state:+set}"; then
-  echo "Unrecognized state:  ${1}" >&2
-  exit 1
-fi
+function main() {
+  state_specified="${1:-disk}"
 
-sudo /usr/bin/tee /sys/power/state <<< "${state}"
-~/bin/monitors
+  check-state
+
+  pre-down
+  down
+  post-up
+}
+
+
+function check-state() {
+  unset available
+  states=( $(cat /sys/power/state) )
+
+  for state_available in "${states[@]}"; do
+    if test "${state_specified}" = "${state_available}"; then
+      available=1
+      break
+    fi
+  done
+
+  if ! test 'set' = "${available:+set}"; then
+    echo "State not available:  '${state_specified}'" >&2
+    exit 1
+  fi
+}
+
+
+function pre-down() {
+  /usr/bin/xscreensaver-command --lock > /dev/null
+}
+
+
+function down() {
+  sudo /usr/bin/tee /sys/power/state > /dev/null <<< "${state_specified}"
+}
+
+
+function post-up() {
+  ~/bin/monitors
+}
+
+
+main "${@}"
