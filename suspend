@@ -35,6 +35,14 @@ function check-state() {
 
 function pre-down() {
   /usr/bin/xscreensaver-command --lock > /dev/null
+  # Try to wait for lock.  Don't wait forever.
+  for i in {1..10}; do
+    if /usr/bin/xscreensaver-command --time | grep -q 'screen locked'; then
+      break
+    fi
+  done
+  # Wait for fade visual effect.
+  sleep 5;
 }
 
 
