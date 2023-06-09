@@ -1,0 +1,11 @@
+## Configuration for the script named "monitors".  Place an edited copy of this
+## file at ~/.config/monitors/config
+
+## Provide the names of the monitors built into the device (internal) and
+## externally attached or docked (external), as listed by xrandr.
+internal=LVDS-1
+external=VGA-1
+## If a default resolution is unsatisfactory, specify a resolution for that
+## monitor, here.
+# internal_resolution=1920x1080
+# external_resolution=1920x1080

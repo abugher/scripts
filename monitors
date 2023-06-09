@@ -1,8 +1,9 @@
 #!/bin/bash
 
 
-internal=LVDS-1
-external=VGA-1
+# Source configuration as script.
+# Lazy and potentially dangerous.
+source ~/.config/monitors/config
 
 
 unset external_attached
@@ -12,8 +13,16 @@ fi
 
 if test set = "${external_attached:+set}"; then
   xrandr --output "${internal}" --off
-  xrandr --output "${external}" --auto
+  if test 'set' = "${internal_resolution:+set}"; then
+    xrandr --output "${external}" --mode "${internal_resolution}"
+  else
+    xrandr --output "${external}" --auto
+  fi
 else
   xrandr --output "${external}" --off
-  xrandr --output "${internal}" --auto
+  if test 'set' = "${external_resolution:+set}"; then
+    xrandr --output "${external}" --mode "${external_resolution}"
+  else
+    xrandr --output "${external}" --auto
+  fi
 fi
