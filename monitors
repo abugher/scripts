@@ -13,16 +13,16 @@ fi
 
 if test set = "${external_attached:+set}"; then
   xrandr --output "${internal}" --off
-  if test 'set' = "${internal_resolution:+set}"; then
-    xrandr --output "${external}" --mode "${internal_resolution}"
+  if test 'set' = "${external_resolution:+set}"; then
+    xrandr --output "${external}" --mode "${external_resolution}"
   else
     xrandr --output "${external}" --auto
   fi
 else
   xrandr --output "${external}" --off
-  if test 'set' = "${external_resolution:+set}"; then
-    xrandr --output "${external}" --mode "${external_resolution}"
+  if test 'set' = "${internal_resolution:+set}"; then
+    xrandr --output "${internal}" --mode "${internal_resolution}"
   else
-    xrandr --output "${external}" --auto
+    xrandr --output "${internal}" --auto
   fi
 fi
