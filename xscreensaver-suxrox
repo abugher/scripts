@@ -22,7 +22,61 @@ SUXROXED=$HOME/.xscreensaver-suxroxed
 TAB=$(echo -e "\t")
 shopt -s nullglob
 
-judge_hack () {
+
+function main() {
+  for hack_dir in "${HACK_DIRS[@]}"; do
+    for hack in $hack_dir/*; do 
+      hack_name=$(echo $hack | sed 's/.*\///')
+
+      # Check that the hack has not been judged.
+      if 
+        grep -q "^${hack_name}$" $SUXROXED
+      then
+        continue
+      fi
+
+      # Ensure the hack is named in configuration.
+      if ! listed; then
+        if official || compliant; then
+          echo "Adding ${hack_name} to the list."
+          list
+        else
+          echo "The hack named ${hack_name} does not seem valid; skipping."
+          continue
+        fi
+      fi
+
+      # Launch the hack, then judge.
+      while true; do
+        echo "Inhibiting screensaver (just once)."
+        xdg-screensaver reset
+        echo "Showing '${hack_name}'."
+        $hack 2>/dev/null &
+        hack_pid="${!}"
+        read -p "Hit enter when done viewing."
+        kill "${hack_pid}"
+        wait "${hack_pid}"
+        read -p "Judgement ( [s]ux, [r]ox, [A]gain ):  " -n 1 response
+        echo
+        case $response in
+          'r')
+              judge_hack $hack_name rox
+              break
+              ;;
+          's')
+              judge_hack $hack_name sux
+              break
+              ;;
+        esac
+      done
+    done
+  done
+
+  echo "You have judged all your hacks.  To start over, remove ${SUXROXED} ."
+}
+
+
+function judge_hack() {
   hack_name=${1}
   judgement=${2}
 
@@ -31,86 +85,54 @@ judge_hack () {
     prefix='-'
   fi
 
-  # Check for configuration line.
-  if ! grep -Eq "^..*${TAB}${hack_name} " $XSS_CONF_FILE; then
-    # xscreensaver-demo will update the configuration with all available hacks.
-    timeout 1 xscreensaver-demo
-    # Don't fail when the line doesn't show up.  There is at least one file,
-    # /usr/lib/xscreensaver/ljlatest, controlled by the package manager, that
-    # xscreensaver-demo never lists in the config.
-    #
-#    if ! grep -Eq "^..*${TAB}${hack_name} " $XSS_CONF_FILE; then
-#      echo "Cannot update .xscreensaver using xscreensaver-demo."
-#      exit 1
-#    fi
-  fi
+  sed -i -E "s/^.(.*\s${hack_name}\s)/${prefix}\\1/" $XSS_CONF_FILE
 
-  # Enable or disable hack.
-  sed -i -E "s/^.(.*${TAB}${hack_name} )/${prefix}\\1/" $XSS_CONF_FILE
-
-  # Record that this hack has been judged.
   echo $hack_name >> $SUXROXED
 }
 
-compliant () {
-  # This might indicate that the thing will quit when you 'q'.
-  hack=$1
+
+function list() {
+  prefix='- '
+  if ldd "${hack}" | grep -q 'GL'; then
+    prefix+="GL: "
+  fi
+  new_line="$(printf '%-32s%-48s%s\n' "${prefix}" "${hack_name} -root" '\n\')"
+  lines=()
+  programs='no'
+  while IFS='' read -r line; do
+    if test 'yes' == "${programs}"; then
+      if ! grep -q '\\n\\$' <<< "${line}"; then
+        programs='over'
+        lines+=( "${new_line}" )
+      fi
+    fi
+    if test 'no' == "${programs}" && grep -q '^programs:' <<< "${line}"; then
+      programs='yes'
+    fi
+    lines+=( "${line}" )
+  done < $XSS_CONF_FILE
+
+  echo "DEBUG:  ${#lines[@]} lines ready to write."
+
+  for line in "${lines[@]}"; do
+    printf '%s\n' "${line}"
+  done > $XSS_CONF_FILE
+}
+
+
+function listed() {
+  grep -Eq "\s${hack_name}\s" $XSS_CONF_FILE
+}
+
+
+function official() {
   $hack --help 2>&1 | grep -q 'XScreenSaver .* distribution'
 }
 
-for hack_dir in "${HACK_DIRS[@]}"; do
-  for hack in $hack_dir/*; do 
-    hack_name=$(echo $hack | sed 's/.*\///')
 
-    # Check that the hack has not been judged.
-    if 
-      grep -q "^${hack_name}$" $SUXROXED
-    then
-      continue
-    fi
+function compliant() {
+  $hack --help 2>&1 | grep -q -- '--root'
+}
 
-    # Check that the hack looks likely to behave.
-    if ! compliant $hack; then
-      echo "${hack}"
-      read -p "The hack named \"${hack}\" seems weird.  'q' may not quit.  Action ( [S]ux, [i]gnore, [t]ry ):  " -n 1 response
-      case $response in
-        'i')
-          continue
-          ;;
-        't')
-          true
-          ;;
-        *)
-          judge_hack $hack_name sux
-          continue
-          ;;
-      esac
-    fi
 
-    # Launch the hack, then judge.
-    while true; do
-      echo "Inhibiting screensaver (just once)."
-      xdg-screensaver reset
-      echo "Showing '${hack_name}'."
-      $hack 2>/dev/null &
-      hack_pid="${!}"
-      read -p "Hit enter when done viewing."
-      kill "${hack_pid}"
-      wait "${hack_pid}"
-      read -p "Judgement ( [s]ux, [r]ox, [A]gain ):  " -n 1 response
-      echo
-      case $response in
-        'r')
-            judge_hack $hack_name rox
-            break
-            ;;
-        's')
-            judge_hack $hack_name sux
-            break
-            ;;
-      esac
-    done
-  done
-done
-
-echo "You have judged all your hacks.  To start over, remove ${SUXROXED} ."
+main "${@}"
