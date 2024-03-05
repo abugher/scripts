@@ -18,7 +18,7 @@ function main() {
   name="${name_xz%.xz}"
 
   if type dd > /dev/null && type pv > /dev/null; then
-    xz --decompress --stdout "${1}" | dd bs=1M | pv -bptera | dd bs=1M of="${name}"
+    xz --decompress --stdout "${1}" | dd bs=1M | pv -btra | dd bs=1M of="${name}"
   else
     xz --decompress --stdout "${1}" > "${name}"
   fi
