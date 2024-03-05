@@ -1,0 +1,33 @@
+#!/bin/bash
+
+
+function main() {
+  echo "unxz (wrapper):  Decompress here, not there." >&2
+
+  if ! test 1 = "${#}"; then
+    usage
+    exit 1
+  fi
+
+  if ! grep -q '\.xz$' <<< "${1}"; then
+    usage
+    exit 2
+  fi
+
+  name_xz="${1##*/}"
+  name="${name_xz%.xz}"
+
+  if type dd > /dev/null && type pv > /dev/null; then
+    xz --decompress --stdout "${1}" | dd bs=1M | pv -bptera | dd bs=1M of="${name}"
+  else
+    xz --decompress --stdout "${1}" > "${name}"
+  fi
+}
+
+
+function usage() {
+  echo -e "Usage:\n  unxz /path/to/file.xz" >&2
+}
+
+
+main "${@}"
