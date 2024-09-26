@@ -31,7 +31,7 @@ function main {
 function succeed {
   type="${1}"
   string="${2}"
-  xmessage -timeout 2 ${xmessageOptions} "Successfully added ${type}:
+  xmessage -timeout 1 ${xmessageOptions} "Successfully added ${type}:
 
   ${string}
 

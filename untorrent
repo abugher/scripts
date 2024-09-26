@@ -6,16 +6,38 @@ credentials=transmission:$(pass show shared/transmission)
 
 
 function main {
-  string="${1}"
-
-  if test '' = "${string}"; then
-    echo "Empty argument matches everything.  Don't delete everything.  C'mon." >&2
-    exit 1
+  force='no'
+  if 
+    test '-f' = "${1}" \
+    || test '--force' = "${1}"
+  then
+    shift 1
+    force='yes'
   fi
+
+  regex=
+  for string in "${@}"; do
+    if test '' = "${string}"; then
+      echo "Empty argument matches everything.  Don't delete everything.  C'mon." >&2
+      exit 1
+    fi
+    if grep -E '^.{0,4}$' <<< "${string}"; then
+      if ! test 'yes' = "${force}"; then
+        echo "Short strings can match a lot.  If you're sure , use '-f' ." >&2
+        usage >&2
+        exit 1
+      fi
+    fi
+    if test '' = "${regex}"; then
+      regex="${string}"
+    else
+      regex="${regex}|${string}"
+    fi
+  done
 
   indices=( $(
     ssh "${ssh_target}" transmission-remote -n "${credentials}" -l \
-      | grep -iE "${string}" \
+      | grep -iE "${regex}" \
       | awk '{print $1}'
   ) )
 
@@ -24,6 +46,17 @@ function main {
     echo "Analyzing:  '${index}'"
     ssh "${ssh_target}" transmission-remote -n "${credentials}" -t "${index}" --remove-and-delete
   done;
+}
+
+
+function usage() {
+  echo '  untorrent [-f|--force] <string> [string] ...'
+  echo '  '
+  echo '    Remove torrents and files where torrent name contains any specified'
+  echo '    string in any capitalization pattern.'
+  echo '  '
+  echo '    Specify -f or --force as the first argument to proceed with unwisely'
+  echo '    short strings.'
 }
 
 
