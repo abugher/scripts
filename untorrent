@@ -1,5 +1,10 @@
 #!/bin/bash
 # untorrent { regex }
+# torrent-first { regex }
+# torrent-last { regex }
+
+self_name="${0##*/}"
+
 
 ssh_target=ansible@files
 credentials=transmission:$(pass show shared/transmission)
@@ -44,7 +49,21 @@ function main {
   for index in "${indices[@]}"; do
     if test '' = "${index}"; then continue; fi
     echo "Analyzing:  '${index}'"
-    ssh "${ssh_target}" transmission-remote -n "${credentials}" -t "${index}" --remove-and-delete
+    case "${self_name}" in
+      untorrent)
+        ssh "${ssh_target}" transmission-remote -n "${credentials}" -t "${index}" --remove-and-delete
+        ;;
+      torrent-first)
+        ssh "${ssh_target}" transmission-remote -n "${credentials}" -t "${index}" -Bh
+        ;;
+      torrent-last)
+        ssh "${ssh_target}" transmission-remote -n "${credentials}" -t "${index}" -Bl
+        ;;
+      *)
+        echo "I don't know what you want me to do or be." >&2
+        exit 1
+        ;;
+    esac
   done;
 }
 
