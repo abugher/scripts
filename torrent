@@ -18,6 +18,9 @@ function main {
     || fail "magnet link" "${magnet_link}" "${?}"
     succeed "magnet link" "${magnet_link}"
   else
+    if grep -q '^file://' <<< "${string}"; then
+      string="${string#file://}"
+    fi
     torrent_file="${string}"
     scp "${torrent_file}" "${ssh_target}:/tmp/${now}.torrent" \
     || fail "torrent" "${torrent_file}" "${?}" "scp failed" 
