@@ -1,4 +1,10 @@
 #!/bin/bash
+#
+#   brightness <up|down|check>
+#
+# Increase or decrease brightness and display resulting brightness level.  If
+# "check" is specified, do not adjust brightness and display current brightness
+# level.
 
 # %sudo   ALL=(root:root) NOPASSWD: /usr/bin/tee /sys/class/backlight/intel_backlight/brightness
 
@@ -11,18 +17,21 @@ function fail() {
 brightness_file='/sys/class/backlight/intel_backlight/brightness'
 increment=30
 
+test 'set' = "${1:+set}" \
+  || fail "Usage:  $0 up|down|check"
+
 current_brightness="$(cat "${brightness_file}")" \
   || fail "Failed to read current brightness."
 grep -qE '^[0-9]+' <<< "${current_brightness}" \
   || fail "Invalide current brightness:  ${current_brightness}"
 
-test 'set' = "${1:+set}" \
-  || fail "Usage:  $0 up|down"
 direction="${1}"
 if test 'up' = "${direction}"; then
   new_brightness="$(( current_brightness + increment ))"
 elif test 'down' = "${direction}"; then
   new_brightness="$(( current_brightness - increment ))"
+elif test 'check' = "${direction}"; then
+  new_brightness="${current_brightness}"
 else
   fail "Invalid direction:  ${direction}"
 fi
