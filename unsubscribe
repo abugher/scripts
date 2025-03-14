@@ -1,0 +1,14 @@
+#!/bin/bash
+#
+# unsubscribe
+#
+# Extract an unsubscribe link from an email message.  Currently, my preferred
+# location to stash an email message file is assumed.  This could be written
+# more generically to take a filename as an optional argument and otherwise
+# operate on stdin.
+
+message_file=~/tmp/message.html
+
+grep -i unsubscribe "${message_file}" \
+  | sed 's/.*href=//;s/ .*//' \
+  | sed 's/^"//;s/"$//'
