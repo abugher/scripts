@@ -10,5 +10,4 @@
 message_file=~/tmp/message.html
 
 grep -i unsubscribe "${message_file}" \
-  | sed 's/.*href=//;s/ .*//' \
-  | sed 's/^"//;s/"$//'
+  | sed 's/.*href=//;s/ .*//;s/^"//;s/"$//'
