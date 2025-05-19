@@ -40,24 +40,44 @@ function main {
     fi
   done
 
+  echo "Getting torrent list."
+
   indices=( $(
-    ssh "${ssh_target}" transmission-remote -n "${credentials}" -l \
+    {
+      ssh "${ssh_target}" transmission-remote -n "${credentials}" -l \
+      || fail "Failed to get torrent list."
+    } \
       | grep -iE "${regex}" \
-      | awk '{print $1}'
+      | awk '{print $1}' \
   ) )
 
+  echo "Torrent list obtained.  Processing."
+
   for index in "${indices[@]}"; do
+    index="$(sed 's/[^0-9]//g' <<< "${index}")"
     if test '' = "${index}"; then continue; fi
-    echo "Analyzing:  '${index}'"
+    echo "Matched torrent index:  '${index}'"
     case "${self_name}" in
       untorrent)
-        ssh "${ssh_target}" transmission-remote -n "${credentials}" -t "${index}" --remove-and-delete
+        if ssh "${ssh_target}" transmission-remote -n "${credentials}" -t "${index}" --remove-and-delete; then
+          echo "... deleted."
+        else
+          warn "Failed to delete index:  '${index}'"
+        fi
         ;;
       torrent-first)
-        ssh "${ssh_target}" transmission-remote -n "${credentials}" -t "${index}" -Bh
+        if ssh "${ssh_target}" transmission-remote -n "${credentials}" -t "${index}" -Bh; then
+          echo "... prioritized."
+        else
+          warn "Failed to prioritize index:  '${index}'"
+        fi
         ;;
       torrent-last)
-        ssh "${ssh_target}" transmission-remote -n "${credentials}" -t "${index}" -Bl
+        if ssh "${ssh_target}" transmission-remote -n "${credentials}" -t "${index}" -Bl; then
+          echo "... deprioritized."
+        else
+          warn "Failed to deprioritize index:  '${index}'"
+        fi
         ;;
       *)
         echo "I don't know what you want me to do or be." >&2
@@ -76,6 +96,17 @@ function usage() {
   echo '  '
   echo '    Specify -f or --force as the first argument to proceed with unwisely'
   echo '    short strings.'
+}
+
+
+function warn() {
+  echo "WARNING:  ${1}" >&2
+}
+
+
+function fail() {
+  echo "ERROR:  ${1}" >&2
+  exit "${2:-1}"
 }
 
 

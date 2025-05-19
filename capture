@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# hh:mm:ss
+maximum_time='05:00:00'
+file_extension="mpg"
+start_time="$(date --iso-8601=s)"
+capture_dir=~/media/videos/screen_and_speakers_capture
+capture_file="${capture_dir}/${start_time}.${file_extension}"
+video_input="${DISPLAY}"
+audio_input="$(pactl list short sources | awk '/monitor/ {print $1}')"
+
+ffmpeg -f x11grab -i "${video_input}" -f pulse -i "${audio_input}" -t "${maximum_time}" "${capture_file}"
