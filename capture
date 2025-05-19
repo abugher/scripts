@@ -1,4 +1,9 @@
 #!/bin/bash
+# capture 
+#
+# Capture audio and video as they are presented on screen and speakers.  (Any
+# cameras or microphones are not involved.)
+
 
 # hh:mm:ss
 maximum_time='05:00:00'
