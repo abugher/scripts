@@ -1,0 +1,14 @@
+#!/bin/bash
+
+input="${1}"
+
+if ! grep -q 'mkv$' <<< "${input}"; then
+  echo 'Specify an input file ending with the string ".mkv".' >&2
+  exit 1
+fi
+
+output="$(
+  sed 's/mkv$/mp4/' <<< "${input}"
+)"
+
+ffmpeg -i "${input}" -vf format=yuv420p "${output}"
