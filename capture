@@ -5,6 +5,7 @@
 # cameras or microphones are not involved.)  Record with codec FFV1.3 in
 # Matroska (mkv) container format.
 
+speaker_identifier='analog-stereo'
 
 start_time="$(date --iso-8601=s)"
 # hh:mm:ss
@@ -12,7 +13,7 @@ maximum_time='03:00:00'
 framerate='30'
 
 video_input="${DISPLAY}"
-audio_input="$(pactl list short sources | awk '/monitor/ {print $1}')"
+audio_input="$(pactl list short sources | awk "/${speaker_identifier}.*\.monitor/ {print \$1}")"
 
 video_codec='ffv1'
 video_codec_args=( -level 3 )
