@@ -1,0 +1,116 @@
+#!/bin/bash
+#
+# Precision is one second.  Accuracy is AT BEST the right number of seconds.  A
+# rounding error of less than one second may occur at each start, stop, pause,
+# and resume.  Errors may accumulate to affect the result by more than a
+# second.
+
+
+# Ensure total elapsed time is output prettily.  Handle the unlikely condition
+# that ^c hits between line blanking and output, which would leave no elapsed
+# time visible without this trap.
+trap 'die; exit' SIGINT
+
+
+function main() {
+  sleep_time='.5s'
+  time_start="$(time_now)"
+
+  output_loop &
+  output_loop_pid=$!
+
+  usage
+  input_loop
+
+  die
+}
+
+
+function time_now() {
+  date '+%s'
+}
+
+
+function blank() {
+  printf '\r\e[K'
+}
+
+
+function output_loop() {
+  while true; do
+    time_output="$(print_time)"
+    blank
+    printf '%s' "${time_output}"
+    sleep "${sleep_time}"
+  done
+}
+
+
+function input_loop() {
+  state='run'
+  time_pause=
+  time_resume=
+  while read input; do
+    if grep -iq '^q' <<< "${input}"; then
+      break
+    elif grep -iqE '^[p]' <<< "${input}"; then
+      pause
+    elif grep -iqE '^[r]' <<< "${input}"; then
+      resume
+    else
+      usage
+    fi
+  done
+}
+
+
+function pause() {
+  if test 'pause' = "${state}"; then
+    return 0
+  fi
+  time_pause="$(time_now)"
+  kill "${output_loop_pid}"
+  state='pause'
+}
+
+
+function resume() {
+  if test 'run' = "${state}"; then
+    return 0
+  fi
+  time_resume="$(time_now)"
+  time_start="$(( time_start + ( time_resume - time_pause ) ))"
+  output_loop &
+  output_loop_pid=$!
+  state='run'
+}
+
+
+function usage() {
+  printf '%s\n' "Enter 'Q' to quit, 'P' to pause, or 'R' to resume."
+}
+
+
+function print_time() {
+  time_now="$(time_now)"
+  elapsed_seconds_total="$(( time_now - time_start ))"
+  elapsed_seconds="$(( elapsed_seconds_total % 60 ))"
+  elapsed_minutes="$(( ( elapsed_seconds_total / 60 ) % 60 ))"
+  elapsed_hours="$(( ( elapsed_seconds_total / 60 / 60 ) % 24 ))"
+  elapsed_days="$(( ( elapsed_seconds_total / 60 / 60 / 24 ) ))"
+  printf '%d days %0.2d hours %0.2d minutes %0.2d seconds ' "${elapsed_days}" "${elapsed_hours}" "${elapsed_minutes}" "${elapsed_seconds}"
+}
+
+
+function die() {
+  resume
+  kill "${output_loop_pid}"
+  wait
+  printf '\n'
+  printf '%s\n' "Total elapsed time:"
+  print_time
+  printf '\n'
+}
+
+
+main
