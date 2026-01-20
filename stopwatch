@@ -71,6 +71,7 @@ function pause() {
   time_pause="$(time_now)"
   kill "${output_loop_pid}"
   state='pause'
+  printf '\n%s\n%s\n\n' "Paused at time:" "$(print_time)"
 }
 
 
@@ -83,11 +84,12 @@ function resume() {
   output_loop &
   output_loop_pid=$!
   state='run'
+  printf '\n%s\n%s\n\n' "Resumed at time:" "$(print_time)"
 }
 
 
 function usage() {
-  printf '%s\n' "Enter 'Q' to quit, 'P' to pause, or 'R' to resume."
+  printf '%s\n' "Enter 'q' to quit, 'p' to pause, or 'r' to resume."
 }
 
 
@@ -106,10 +108,7 @@ function die() {
   resume
   kill "${output_loop_pid}"
   wait
-  printf '\n'
-  printf '%s\n' "Total elapsed time:"
-  print_time
-  printf '\n'
+  printf '\n%s\n%s\n\n' "Total elapsed time:" "$(print_time)"
 }
 
 
