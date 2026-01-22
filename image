@@ -1,6 +1,14 @@
 #!/bin/bash
 #
-# Overwrite a device (or file) with an image file.
+# Overwrite a device (or file) with an image file.  Minimize code run as root.
+# Show progress.  Fail if the output target is mounted or otherwise in use.
+
+# TODO:  Test intended failure conditions.
+
+# TODO:  Fail if output the target is the subject of an ongoing direct read or
+# write operation.
+
+# TODO:  Decide whether to check whether arguments refer to extant files.
 
 
 shopt -s nullglob
@@ -11,9 +19,11 @@ function main() {
   output="$(readlink -m "${2}")"
   num_args=2
 
+  check_tools
+
   # Checking that arguments are non-empty and/or refer to files that exist may
   # be good, or may be redundant.
-  validate_args "${@}"
+  check_args "${@}"
 
   output "Input file:  ${input}"
   output "Output file:  ${output}"
@@ -35,7 +45,33 @@ function main() {
 }
 
 
-function validate_args() {
+function check_tools() {
+  tools=(
+    sudo
+    dd
+    pv
+    readlink
+    grep
+    df
+    mount
+    swapon
+    losetup
+  )
+
+  for tool in "${tools[@]}"; do
+    tools_present='yes'
+    if ! type "${tool}" > /dev/null 2>&1; then
+      tools_present='no'
+      warn "Required not found:  '${tool}'"
+    fi
+    if ! test 'yes' = "${tools_present}"; then
+      fail "Required tools not all found."
+    fi
+  done
+}
+
+
+function check_args() {
   if ! test "${num_args}" = "${#}"; then
     usage
     fail "Wrong number of arguments.  Expected:  ${num_args}.  Received:  ${#}."
