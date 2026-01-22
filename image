@@ -1,0 +1,197 @@
+#!/bin/bash
+#
+# Overwrite a device (or file) with an image file.
+
+
+shopt -s nullglob
+
+
+function main() {
+  input="${1}"
+  output="$(readlink -m "${2}")"
+  num_args=2
+
+  # Checking that arguments are non-empty and/or refer to files that exist may
+  # be good, or may be redundant.
+  validate_args "${@}"
+
+  output "Input file:  ${input}"
+  output "Output file:  ${output}"
+
+  # Checking whether the output (device) file is in use would definitely be
+  # wise, but may not be simple.  Discussion:
+  #
+  #   https://unix.stackexchange.com/questions/111779/
+  check_output_safety
+
+  bs="$(( 1024 * 1024 ))"
+  size="$(stat -c '%s' "${input}")"
+
+  sudo -v
+
+  dd bs="${bs}" if="${input}" \
+  | pv -B "$(( bs * 2 ))" -praetkfs "${size}" \
+  | sudo dd oflag=sync bs="${bs}" of="${output}"
+}
+
+
+function validate_args() {
+  if ! test "${num_args}" = "${#}"; then
+    usage
+    fail "Wrong number of arguments.  Expected:  ${num_args}.  Received:  ${#}."
+  fi
+  if ! test -e "${input}"; then
+    fail "Input file does not exist."
+  fi
+  if ! test -e "${output}"; then
+    warn "Output file does not exist."
+  fi
+}
+
+
+function check_output_safety() {
+  label="$(find_label "${output}")"
+  uuid="$(find_uuid "${output}")"
+  check_fstab 
+  check_mounts 
+  check_swap
+  check_device_mapper 
+  check_loopback
+}
+
+
+function find_label() {
+  label=
+  for label_link in /dev/disk/by-label/*; do
+    label_target="$(readlink -m "${label_link}")"
+    if test "${output}" = "${label_target}"; then
+      if ! test '' = "${label}"; then
+        warn "Multiple labels found.  Ignoring label:  '${label}'"
+      fi
+      label="${label_link##*/}"
+    fi
+  done
+
+  printf '%s\n' "${label}"
+}
+
+
+function find_uuid() {
+  uuid=
+  for uuid_link in /dev/disk/by-uuid/*; do
+    uuid_target="$(readlink -m "${uuid_link}")"
+    if test "${output}" = "${uuid_target}"; then
+      if ! test '' = "${uuid}"; then
+        warn "Multiple uuids found.  Ignoring uuid:  '${uuid}'"
+      fi
+      uuid="${uuid_link##*/}"
+    fi
+  done
+
+  printf '%s\n' "${uuid}"
+}
+
+
+function check_fstab() {
+  # This will not notice an fstab entry referring to the output target using a
+  # different string.  One example is a symlink to a device file.  Another
+  # example is backslash escape codes for characters.
+  #
+  # This may be an acceptable level of risk if currently mounted volumes will
+  # still be noticed.
+
+  if grep -q "^[[:space:]]*${output}[[:space:]]" /etc/fstab; then
+    fail "Output file ('${output}') is specified in:  /etc/fstab"
+  fi
+
+  if grep -q "^[[:space:]]*UUID=${uuid}[[:space:]]" /etc/fstab; then
+    fail "UUID ('${uuid}') is specified in:  /etc/fstab"
+  fi
+
+  if grep -q "^[[:space:]]*LABEL=${label}[[:space:]]" /etc/fstab; then
+    fail "Label ('${label}') is specified in:  /etc/fstab"
+  fi
+}
+
+
+check_mounts() {
+  # Carefully avoid problems with symlinks and whitespace.
+
+  while read volume_entry; do
+    volume="$(readlink -m "${volume_entry}")"
+    if test "${volume}" = "${output}"; then
+      fail "Output volume is mounted."
+    fi
+  done < <(df -l --output=source)
+
+  mounts="$(mount)"
+
+  if grep -q "^${output}[[:space:]]" <<< "${mounts}"; then
+    fail "Output target ('${output}') is currently mounted."
+  fi
+}
+
+
+check_swap() {
+  # Carefully avoid problems with symlinks and whitespace.
+
+  while read swap_entry; do
+    swap="$(readlink -m "${swap_entry}")"
+    if test "${swap}" = "${output}"; then
+      fail "Output target is in use as swap."
+    fi
+  done < <(swapon --noheadings --show=name)
+}
+
+
+function check_device_mapper() {
+  # This may not notice device mapper holds on non-device files.  This may be
+  # acceptable if (1) device mapper only interacts with non-device files
+  # through loopback device files, and (2) use of a non-device file as backing
+  # for a loopback device file will be noticed.
+  if ! grep -q '^/dev/' <<< "${output}"; then
+    return 0
+  fi
+  for hold in /sys/block/{,*/}"${output##*/}"/holders/*; do
+    fail "Output target is held by device mapper."
+  done
+}
+
+
+function check_loopback() {
+  # Carefully avoid problems with symlinks and whitespace.
+
+  while read loop_entry; do
+    loop="$(readlink -m "${loop_entry}")"
+    if test "${loop}" = "${output}"; then
+      fail "Output target backs a loopback device file."
+    fi
+  done < <(losetup -n -O back-file)
+}
+
+
+function output() {
+  printf '%s\n' "${1}"
+}
+
+
+function warn() {
+  output "Warning:  ${1}" >&2
+}
+
+
+function fail() {
+  output "Error:  ${1}" >&2
+  exit "${2:-1}"
+}
+
+
+function usage() {
+  output "image <input_file> <output_file>"
+  output ""
+  output "Example:"
+  output "  image image.iso /dev/sda"
+}
+
+
+main "${@}"
