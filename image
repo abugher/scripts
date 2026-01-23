@@ -25,6 +25,12 @@
 
 # TODO:  Test intended failure conditions.
 
+# TODO:  Research how effective it is to obtain a lock on a device file and
+# whether this might remove the need for some other checking.
+
+# TODO:  Check fstab for partitions (and label and UUID thereof) of the output
+# target.  Research a way to list partitions to facilitate this.
+
 # TODO:  Handle lack of read permissions for readlink.  Maybe write a wrapper
 # function.
 
