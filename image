@@ -33,6 +33,9 @@
 
 # TODO:  Decide whether to check whether arguments refer to extant files.
 
+# TODO:  Research whether device mapper interacts directly with non-device
+# files.  Adjust comments in check_device_mapper().
+
 
 shopt -s nullglob
 
@@ -205,7 +208,8 @@ function check_device_mapper() {
   if ! grep -q '^/dev/' <<< "${output}"; then
     return 0
   fi
-  for hold in /sys/block/{,*/}"${output##*/}"/holders/*; do
+  # Wildcards should facilitate checking both devices and partitions.
+  for hold in /sys/block/{,*/}"${output##*/}"/{,*/}holders/*; do
     fail "Output target is held by device mapper."
   done
 }
