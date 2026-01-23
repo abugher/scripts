@@ -159,12 +159,6 @@ check_mounts() {
       fail "Output volume is mounted."
     fi
   done < <(df -l --output=source)
-
-  mounts="$(mount)"
-
-  if grep -q "^${output}[[:space:]]" <<< "${mounts}"; then
-    fail "Output target ('${output}') is currently mounted."
-  fi
 }
 
 
