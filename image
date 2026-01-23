@@ -28,12 +28,6 @@
 # TODO:  Research how effective it is to obtain a lock on a device file and
 # whether this might remove the need for some other checking.
 
-# TODO:  Check fstab for partitions (and label and UUID thereof) of the output
-# target.  Research a way to list partitions to facilitate this.
-
-# TODO:  Investigate lsblk for identifying relationships among partitions and
-# devices.
-
 # TODO:  Handle lack of read permissions for readlink.  Maybe write a wrapper
 # function.
 
@@ -44,6 +38,9 @@
 
 # TODO:  Research whether device mapper interacts directly with non-device
 # files.  Adjust comments in check_device_mapper().
+
+# TODO:  Fail if information gathering commands fail.  Determine how to make
+# that happen when they run in sub-shells.
 
 
 shopt -s nullglob
@@ -91,6 +88,7 @@ function check_tools() {
     mount
     swapon
     losetup
+    lsblk
   )
 
   for tool in "${tools[@]}"; do
@@ -121,8 +119,10 @@ function check_args() {
 
 
 function check_output_safety() {
-  label="$(find_label "${output}")"
-  uuid="$(find_uuid "${output}")"
+  output_parts=( "${output}" )
+  while read output_part; do
+    output_parts+=( "${output_part}" )
+  done < <(lsblk -lnpo name "${output}")
   check_fstab 
   check_mounts 
   check_swap
@@ -170,41 +170,47 @@ function check_fstab() {
   #
   # This may be an acceptable level of risk if currently mounted volumes will
   # still be noticed.
+  for output_part in "${output_parts[@]}"; do
+    label="$(find_label "${output_part}")"
+    uuid="$(find_uuid "${output_part}")"
 
-  if grep -q "^[[:space:]]*${output}[[:space:]]" /etc/fstab; then
-    fail "Output file ('${output}') is specified in:  /etc/fstab"
-  fi
+    if grep -q "^[[:space:]]*${output_part}[[:space:]]" /etc/fstab; then
+      fail "Output target or partition or subvolume ('${output_part}') is specified in:  /etc/fstab"
+    fi
 
-  if grep -q "^[[:space:]]*UUID=${uuid}[[:space:]]" /etc/fstab; then
-    fail "UUID ('${uuid}') is specified in:  /etc/fstab"
-  fi
+    if grep -q "^[[:space:]]*UUID=${uuid}[[:space:]]" /etc/fstab; then
+      fail "UUID ('${uuid}') is specified in:  /etc/fstab"
+    fi
 
-  if grep -q "^[[:space:]]*LABEL=${label}[[:space:]]" /etc/fstab; then
-    fail "Label ('${label}') is specified in:  /etc/fstab"
-  fi
+    if grep -q "^[[:space:]]*LABEL=${label}[[:space:]]" /etc/fstab; then
+      fail "Label ('${label}') is specified in:  /etc/fstab"
+    fi
+  done
 }
 
 
 check_mounts() {
   # Carefully avoid problems with symlinks and whitespace.
-
   while read volume_entry; do
     volume="$(readlink -m "${volume_entry}")"
-    if test "${volume}" = "${output}"; then
-      fail "Output volume is mounted."
-    fi
+    for output_part in "${output_parts[@]}"; do
+      if test "${volume}" = "${output_part}"; then
+        fail "Output target or partition or subvolume ('${output_part}') is mounted."
+      fi
+    done
   done < <(df -l --output=source)
 }
 
 
 check_swap() {
   # Carefully avoid problems with symlinks and whitespace.
-
   while read swap_entry; do
     swap="$(readlink -m "${swap_entry}")"
-    if test "${swap}" = "${output}"; then
-      fail "Output target is in use as swap."
-    fi
+    for output_part in "${output_parts[@]}"; do
+      if test "${swap}" = "${output_part}"; then
+        fail "Output target or partition or subvolume is in use as swap."
+      fi
+    done
   done < <(swapon --noheadings --show=name)
 }
 
@@ -214,12 +220,13 @@ function check_device_mapper() {
   # acceptable if (1) device mapper only interacts with non-device files
   # through loopback device files, and (2) use of a non-device file as backing
   # for a loopback device file will be noticed.
-  if ! grep -q '^/dev/' <<< "${output}"; then
-    return 0
-  fi
-  # Wildcards should facilitate checking both devices and partitions.
-  for hold in /sys/block/{,*/}"${output##*/}"/{,*/}holders/*; do
-    fail "Output target is held by device mapper."
+  for output_part in "${output_parts[@]}"; do
+    if grep -q '^/dev/' <<< "${output_part}"; then
+      # Wildcards should facilitate checking both devices and partitions.
+      for hold in /sys/block/{,*/}"${output_part##*/}"/{,*/}holders/*; do
+        fail "Output target is held by device mapper."
+      done
+    fi
   done
 }
 
@@ -229,9 +236,11 @@ function check_loopback() {
 
   while read loop_entry; do
     loop="$(readlink -m "${loop_entry}")"
-    if test "${loop}" = "${output}"; then
-      fail "Output target backs a loopback device file."
-    fi
+    for output_part in "${output_parts[@]}"; do
+      if test "${loop}" = "${output_part}"; then
+        fail "Output target or partition or subvolume ('${output_part}') backs a loopback device file:  '${loop_entry}'"
+      fi
+    done
   done < <(losetup -n -O back-file)
 }
 
