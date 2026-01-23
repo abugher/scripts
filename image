@@ -31,6 +31,9 @@
 # TODO:  Check fstab for partitions (and label and UUID thereof) of the output
 # target.  Research a way to list partitions to facilitate this.
 
+# TODO:  Investigate lsblk for identifying relationships among partitions and
+# devices.
+
 # TODO:  Handle lack of read permissions for readlink.  Maybe write a wrapper
 # function.
 
