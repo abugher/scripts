@@ -1,9 +1,32 @@
 #!/bin/bash
 #
 # Overwrite a device (or file) with an image file.  Minimize code run as root.
-# Show progress.  Fail if the output target is mounted or otherwise in use.
+# Show progress.  Attempt to fail if the output target is mounted or otherwise
+# in use.
+#
+# WARNING:  Detection of usage of the output target can fail.  There are a
+# number of ways to be in use, and checking all of them may be impossible.  The
+# policy of running as much code as possible as non-root may lead to more cases
+# where detection fails.  Even if detection is perfect, there is still a race
+# condition.  
+# 
+# The idea is that this script should stop you (me) from accidentally imaging
+# the OS disk instead of a USB device on a single user desktop, especially when
+# those targets have similar names, ie when the ordering of /dev/sda and
+# /dev/sdb depend on whether you had a USB stick plugged in at boot time.  That
+# case should fairly well handled, but you should still try to target the right
+# device.  If your system is complex, multi-user, and/or unusually configured,
+# unhandled problems are more likely, but the script should still be safer than
+# just blasting the target with dd.
+#
+# It's like a safety net.  There are big holes, but I still feel better with it
+# than without it.
+
 
 # TODO:  Test intended failure conditions.
+
+# TODO:  Handle lack of read permissions for readlink.  Maybe write a wrapper
+# function.
 
 # TODO:  Fail if output the target is the subject of an ongoing direct read or
 # write operation.
