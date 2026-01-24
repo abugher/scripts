@@ -7,8 +7,8 @@
 # having the sleep statement is enough to allow the process to work.
 
 
-delay=2         # seconds
+delay=5         # seconds
 
 printf 'Strike [Enter] when ready for:  pinentry-curses\n'
-read -t 2
+read -t "${delay}"
 pinentry-curses
