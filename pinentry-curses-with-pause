@@ -2,9 +2,9 @@
 #
 # Phones with little screens only have enough screen real estate for
 # pinentry-curses when the keyboard is minimized.  Give the user a moment to do
-# that before trying pinentry-curses.  Ideally, this would start with a prompt
-# to do so, before the sleep statement, and possibly give a countdown, but just
-# having the sleep statement is enough to allow the process to work.
+# that before trying pinentry-curses.
+#
+# A countdown might be nice.
 
 
 delay=5         # seconds
