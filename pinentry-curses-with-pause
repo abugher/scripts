@@ -1,0 +1,14 @@
+#!/bin/bash
+#
+# Phones with little screens only have enough screen real estate for
+# pinentry-curses when the keyboard is minimized.  Give the user a moment to do
+# that before trying pinentry-curses.  Ideally, this would start with a prompt
+# to do so, before the sleep statement, and possibly give a countdown, but just
+# having the sleep statement is enough to allow the process to work.
+#
+# This will cause a pointless and potentially annoying delay for local
+# sessions.  It might also be nice to allow the user to strike [Enter] again to
+# skip the delay.
+
+sleep 2
+pinentry-curses
