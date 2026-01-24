@@ -4,11 +4,35 @@
 # pinentry-curses when the keyboard is minimized.  Give the user a moment to do
 # that before trying pinentry-curses.
 #
+# It would be good to provide a prompt explaining the delay.
+#
+# It would be good to allow skipping the delay.
+#
+# A longer delay would work well with a prompt and the ability to skip.
+#
 # A countdown might be nice.
 
 
-delay=5         # seconds
+delay=2         # seconds
 
-printf 'Strike [Enter] when ready for:  pinentry-curses\n'
-read -t "${delay}"
+# When the script is run directly, it seems to work, but when it is called by
+# gpg-agent for pinentry duty, problems start.
+#
+# echo or printf cause total failure:
+#   gpg: public key decryption failed: No pinentry
+#   gpg: decryption failed: No pinentry
+# read fails to read.  Striking [Enter] does not terminate the timeout, and the
+# keystroke is sent to pinentry-curses as the first character of the pass
+# phrase.  Any prompt specified with -p is not displayed.
+# 
+# So this doesn't work:
+#   read -p 'Strike [Enter] when ready for:  pinentry-curses' -t "${delay}" >&2
+# ... and these don't work:
+#   printf 'Strike [Enter] when ready for:  pinentry-curses\n'
+#   echo 'Strike [Enter] when ready for:  pinentry-curses'
+# Only the sleep statement seems to be OK:
+sleep "${delay}"
+
+# The real pinentry program seems to understand more than I do about how to
+# handle input and output.
 pinentry-curses
