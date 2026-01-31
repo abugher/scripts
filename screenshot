@@ -1,0 +1,20 @@
+#!/bin/bash
+# Requires:
+#   scrot
+#   readlink
+#   feh
+
+function main() {
+  cd 
+  cd media
+  cd pictures
+  cd screenshots
+
+  image=$(
+    scrot -ze 'echo $f'
+  )
+  #printf '%s\n' "${image}"
+  feh -F "${image}"
+}
+
+main
