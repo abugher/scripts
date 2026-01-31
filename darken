@@ -1,0 +1,9 @@
+#!/bin/bash
+
+sleep 1
+if 
+  xset dpms force off 2>&1 \
+    | grep -q 'unknown option'
+then
+  swaymsg 'output * dpms off'
+fi
