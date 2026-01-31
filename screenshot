@@ -1,20 +1,75 @@
 #!/bin/bash
+#
+# screenshot
+#
 # Requires:
 #   scrot
-#   readlink
 #   feh
+#   xmessage
+
+
+# where to save screenshots
+screenshots_path=~/media/pictures/screenshots
+# seconds to display screenshot for review
+display_time=3
+
 
 function main() {
-  cd 
-  cd media
-  cd pictures
-  cd screenshots
+  keep=0
+  display=1
+  delete=2
 
-  image=$(
-    scrot -ze 'echo $f'
-  )
-  #printf '%s\n' "${image}"
-  feh -F "${image}"
+  buttons=()
+  buttons[keep]="Keep it."
+  buttons[display]="Show it again."
+  buttons[delete]="Delete it."
+
+  cd "${screenshots_path}" \
+    || fail "Could not find the working directory:  '${screenshots_path}'"
+
+  if ! image=$(scrot -ze 'echo $f'); then
+    fail "scrot returned non-zero:  ${?}" "${?}"
+  fi
+
+  reply="${display}"
+  while test "${display}" = "${reply}"; do
+    display
+    prompt
+    reply="${?}"
+  done
+
+  if test "${delete}" = "${reply}"; then
+    rm -f "${image}" \
+      || fail "Failed to delete the screenshot.  Path:  '${image}'"
+  fi
 }
+
+
+function display() {
+  timeout "${display_time}" feh -F "${image}"
+}
+
+
+function prompt() {
+  xmessage \
+    -center \
+    -buttons \
+    "${buttons[keep]}:${keep},${buttons[display]}:${display},${buttons[delete]}:${delete}" \
+    -default "Show it again." \
+    "Screenshot successfully captured." \
+  ; 
+}
+
+
+function fail() {
+  xmessage \
+    -center \
+    -buttons 'OK' \
+    -default 'OK' \
+    "$(printf 'ERROR:  Failed to capture screenshot.\n\n%s' "${1}")" \
+  ;
+  exit "${2:-1}"
+}
+
 
 main
