@@ -1,5 +1,19 @@
 #!/bin/bash
+#
+# Requirements:
+#
+#   pgrep
 
-pgrep -lu "${USER}" '^xscreensaver$' || xscreensaver -no-splash & disown
-xscreensaver-command -lock \
-|| swaylock -c 000000
+
+# If xscreensaver is not running, launch it.  This will fail if X11 is not
+# running, but that should be fine.
+if ! pgrep -lu "${USER}" '^xscreensaver$'; then
+  xscreensaver -no-splash \
+  & disown
+fi
+
+# Tell xscreensaver to lock.  
+if ! xscreensaver-command -lock; then
+  # If that doesn't work, try locking sway.  (Like i3, but for wayland.)
+  swaylock -c 000000
+fi
