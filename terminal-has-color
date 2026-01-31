@@ -1,0 +1,16 @@
+#!/bin/bash
+# Return true (0) if the terminal supports color.
+
+if grep -qE 'color|xterm|screen' <<< "${TERM}"; then
+  exit 0
+else
+  colors="$(tput colors 2>/dev/null)"
+  if ! grep -q '[0-9]' <<< "${colors}"; then
+    colors=0
+  fi
+  if test "${colors}" -ge 8; then
+    exit 0
+  fi
+fi
+
+exit 1

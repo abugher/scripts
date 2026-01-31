@@ -1,0 +1,117 @@
+#!/bin/bash
+
+if ! terminal-has-color; then
+  printf '%s\n' '$(printf %0.3d "${?}") \u@\h:$(sed "s#^${HOME}#~#" <<< "${PWD}") $(if test 0 = "${UID}"; then printf "#"; else printf "$"; fi) '
+  exit
+fi
+
+
+function ps1_color_code() {
+  color="${1}"
+  modifier="${2:-0}"
+  if test "${3:+set}" = 'set'; then
+    background="${3}"
+    printf '\\[\\033[%s;%s;%sm\\]' "${modifier}" "${color}" "${background}"
+  else
+    printf '\\[\\033[%s;%sm\\]' "${modifier}" "${color}"
+  fi
+}
+
+
+function color_code() {
+  color="${1}"
+  modifier="${2:-0}"
+  if test "${3:+set}" = 'set'; then
+    background="${3}"
+    printf '\\033[%s;%s;%sm' "${modifier}" "${color}" "${background}"
+  else
+    printf '\\033[%s;%sm' "${modifier}" "${color}"
+  fi
+}
+
+
+function main() {
+  if grep -q 'screen' <<< "${TERM}"; then
+    ps1_default_color="$(ps1_color_code "${fg[gray]}" "${mod[underline]}")"
+  else
+    ps1_default_color="$(ps1_color_code "${fg[gray]}" "${mod[italics]}")"
+  fi
+
+  if test 0 = "${UID}"; then 
+    ps1_splash_color="$(ps1_color_code "${fg[red]}" "${mod[invert]}")"
+  else 
+    ps1_splash_color="$(ps1_color_code "${fg[green]}" "${mod[none]}")"
+  fi
+
+  ps1_ret="$(ps1_color_code "${bg[blue]}")"'$(printf %3d "${?}")'"${ps1_reset}"
+  ps1_user="${ps1_default_color}\\u${ps1_reset}"
+  ps1_at="${ps1_splash_color}@${ps1_reset}"
+  ps1_host="${ps1_default_color}\\h${ps1_reset}"
+  ps1_colon="${ps1_splash_color}:${ps1_reset}"
+  ps1_pwd="${ps1_default_color}"'$(sed "s#^${HOME}#~#" <<< "${PWD}")'"${ps1_reset}"
+  ps1_sigil="${ps1_splash_color}$(
+    if test 0 = "${UID}"; then 
+      printf '#'
+    else 
+      printf '$'
+    fi
+  )${ps1_reset}"
+
+  printf '%s\n' "${ps1_ret} ${ps1_user}${ps1_at}${ps1_host}${ps1_colon}${ps1_pwd}${ps1_sigil} "
+}
+
+
+function demo() {
+  for b in $(sort <<< "${bg[@]}"); do
+    for f in $(sort <<< "${fg[@]}"); do
+      for m in $(sort <<< "${mod[@]}"); do
+        printf "$(color_code "${f}" "${m}" "${b}") ${f};${m};${b} ${reset}"
+      done
+      printf '\n'
+    done
+  done
+}
+
+
+declare -A fg
+fg[black]=30
+fg[red]=31
+fg[green]=32
+fg[amber]=33
+fg[blue]=34
+fg[magenta]=35
+fg[cyan]=36
+fg[gray]=37
+
+declare -A bg
+bg[black]=40
+bg[red]=41
+bg[green]=42
+bg[amber]=43
+bg[blue]=44
+bg[magenta]=45
+bg[cyan]=46
+bg[gray]=47
+
+declare -A mod
+mod[none]=0
+mod[bright]=1
+mod[dim]=2
+mod[italics]=3
+mod[underline]=4
+mod[blink]=5
+mod[blink]=6
+mod[invert]=7
+mod[invisible]=8
+mod[strikethrough]=9
+
+
+ps1_reset="$(ps1_color_code 0)"
+reset="$(color_code 0)"
+
+
+if test "${1}" = 'demo'; then
+  demo
+else
+  main
+fi
