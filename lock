@@ -1,5 +1,5 @@
 #!/bin/bash
 
-pgrep -lu aaron '^xscreensaver$' || xscreensaver -no-splash & disown
+pgrep -lu "${USER}" '^xscreensaver$' || xscreensaver -no-splash & disown
 xscreensaver-command -lock \
 || swaylock -c 000000
