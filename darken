@@ -1,9 +1,27 @@
 #!/bin/bash
+#
+# If binding this to a shortcut, bind it to the release of the key(s), or the
+# key up event is likely to reactivate the display.
 
-sleep 1
-if 
-  xset dpms force off 2>&1 \
+
+function main() {
+  try_x \
+  || try_w
+}
+
+
+function try_x() {
+  # Try to tell X11 to go dark.
+  ! xset dpms force off 2>&1 \
     | grep -q 'unknown option'
-then
+}
+
+
+function try_w() {
+  # No X11?  Maybe I lost my mind and tried wayland again.  sway is like i3 but
+  # for wayland, so I am probably using that.  Try telling sway to go dark.
   swaymsg 'output * dpms off'
-fi
+}
+
+
+main
