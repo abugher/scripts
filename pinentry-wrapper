@@ -35,6 +35,8 @@
 
 # REMAINING ISSUES:
 #
+# pinentry-gtk-2 does not seem to work when launched this way.
+#
 # This causes an unnecessary pause when using a screen session locally.
 #
 # Some of the logic below may be redundant to the fallback functionality built
@@ -53,13 +55,13 @@ delay=2         # seconds
 
 
 if test '' = "${DISPLAY}" || grep -q '^screen' <<< "${TERM}"; then
-  # Either X11 is not available, or a screen session is in use, so X11 might
-  # not be visible to the user, even if it is available to this program.  Avoid
+  # Either X11 is not available, or this is a screen session, so X11 might not
+  # be visible to the user, even if it is available to this program.  Avoid
   # relying on a graphical interface.
   sleep "${delay}"
-  pinentry-curses
+  exec pinentry-curses "${@}"
 else
   # X11 is available and this is not a screen session.  Avoid relying on a
   # command line interface, in case this is a background program.
-  pinentry-gtk-2
+  exec pinentry-gtk-2 "${@}"
 fi
