@@ -33,9 +33,25 @@
 # handle input and output.
 
 
-# REMAINING ISSUES:
+# ENVIRONMENT VARIABLES:
 #
-# pinentry-gtk-2 does not seem to work when launched this way.
+# This wrapper does not seem to have access to the same environment used by the
+# program requiring pinentry.  (eg pass)  The pinentry program (this wrapper)
+# is a child of gpg-agent.  gpg-agent is a child of init, eventually, but seems
+# to inherit some of the environment (eg TERM, GPG_TTY) from the first program
+# to attempt to interact with it.  (I guess it is launched on demand.)  The
+# DISPLAY variable seems to be inherited from the program currently asking for
+# pinentry to happen.
+#
+# PINENTRY_USER_DATA seems to be designed to be passed to the pinentry program
+# from the program requring pinentry.  It also seems to be empty by default in
+# my testing with pass.  I am adjusting my ~/.bashrc to (ab)use this variable
+# to smuggle in the relevant TERM and DISPLAY variables for this wrapper to
+# make decisions.  Watch for trouble, as I do not know what programs other than
+# pass may do with PINENTRY_USER_DATA, and my use of eval may be unwise.
+
+
+# REMAINING ISSUES:
 #
 # This causes an unnecessary pause when using a screen session locally.
 #
@@ -54,14 +70,17 @@
 delay=2         # seconds
 
 
+eval "${PINENTRY_USER_DATA}"
 if test '' = "${DISPLAY}" || grep -q '^screen' <<< "${TERM}"; then
-  # Either X11 is not available, or this is a screen session, so X11 might not
-  # be visible to the user, even if it is available to this program.  Avoid
+  # Either X11 is not available, or this is a screen session.  X11 might not be
+  # visible to the user, even if it is available to this program.  Avoid
   # relying on a graphical interface.
   sleep "${delay}"
-  exec pinentry-curses "${@}"
+  pinentry-curses
 else
-  # X11 is available and this is not a screen session.  Avoid relying on a
-  # command line interface, in case this is a background program.
-  exec pinentry-gtk-2 "${@}"
+  # X11 is available, and this is not a screen session.  This could be a pure
+  # graphical application.  This could also be a background process, such as a
+  # file handler launched by the browser.  Avoid relying on a command line
+  # interface.
+  pinentry-gtk-2
 fi
