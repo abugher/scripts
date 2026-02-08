@@ -14,7 +14,7 @@ function main {
   string="${1}"
   if echo "${string}" | grep -q '^magnet:'; then
     magnet_link="${string}"
-    ssh "${ssh_target}" transmission-remote -n "${credentials}" -a "'${magnet_link}'" \
+    ssh "${ssh_target}" transmission-remote -n "${credentials}" -a '"$(cat)"' <<< "${magnet_link}" \
     || fail "magnet link" "${magnet_link}" "${?}"
     succeed "magnet link" "${magnet_link}"
   else
