@@ -1,0 +1,65 @@
+#!/bin/bash
+#
+# See:  ~/.gnupg/gpg-agent.conf
+
+
+# SMALL SCREEN MODE:
+# 
+# Phones with little screens only have enough screen real estate for
+# pinentry-curses when the keyboard is minimized.  Give the user a moment to do
+# that before trying pinentry-curses.
+
+
+# LIMITATIONS ON INTERACTIVITY:
+# 
+# When the script is run directly, it seems to work, but when it is called by
+# gpg-agent for pinentry duty, problems start.
+#
+# echo or printf cause total failure:
+#   gpg: public key decryption failed: No pinentry
+#   gpg: decryption failed: No pinentry
+# read fails to read.  Striking [Enter] does not terminate the timeout, and the
+# keystroke is sent to pinentry-curses as the first character of the pass
+# phrase.  Any prompt specified with -p is not displayed.
+# 
+# So this doesn't work:
+#   read -p 'Strike [Enter] when ready for:  pinentry-curses' -t "${delay}" >&2
+# ... and these don't work:
+#   printf 'Strike [Enter] when ready for:  pinentry-curses\n'
+#   echo 'Strike [Enter] when ready for:  pinentry-curses'
+# The sleep statement seems to be OK.
+#
+# The real pinentry program seems to understand more than I do about how to
+# handle input and output.
+
+
+# REMAINING ISSUES:
+#
+# This causes an unnecessary pause when using a screen session locally.
+#
+# Some of the logic below may be redundant to the fallback functionality built
+# in to pinentry-gtk-2.
+#
+# It would be good to provide a prompt explaining the delay.
+#
+# It would be good to allow skipping the delay.
+#
+# A longer delay would work well with a prompt and the ability to skip.
+#
+# A countdown might be nice.
+
+
+delay=2         # seconds
+
+
+if '' = "${DISPLAY}" || grep -q '^screen' <<< "${TERM}"; then
+  # Either X11 is not available, or a screen session is in use, so X11 might
+  # not be visible to the user, even if it is available to this program.  Avoid
+  # relying on a graphical interface.
+  sleep "${delay}"
+  pinentry-curses
+else
+  # X11 is available and this is not a screen session.  Avoid relying on a
+  # command line interface, in case this is a background program.
+  pinentry-gtk-2
+fi
