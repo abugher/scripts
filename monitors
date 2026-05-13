@@ -11,9 +11,19 @@ function main() {
   unset internal_with_external
 
   # Ordinal array of strings:
+  #     External outputs will be configured in this order.  If all are
+  #     specified as primary, the last successfully configured output will
+  #     become primary.
   external_names=()
 
-  # Associative arrays, indexed by name;
+  # Hashes (associative arrays), indexed by name (as listed in
+  # $external_names):
+  #     $external_outputs[$name] must be set for each member of
+  #     $external_outputs.  Other hashes are optional, but resolution must be
+  #     set for rate to take effect.  (xrandr just works that way.  This script
+  #     could potentially work around it by parsing $(xrandr) to find the
+  #     default resolution for each output and passing that when one is not
+  #     specified.  That is not presently implemented, though.)
   for var in \
     'external_outputs' \
     'external_resolutions' \
@@ -52,6 +62,9 @@ function main() {
         ;
       then
         output_configured='yes'
+        output "Configured output requested by name:  '${name}'"
+      else
+        warn "Did not configure external output requested by name:  '${name}'"
       fi
     done
   fi
@@ -66,11 +79,15 @@ function main() {
         ;
       then
         output_configured='yes'
+        output "Configured requested internal output."
+      else
+        warn "Did not configure requested internal output."
       fi
     fi
   fi
 
   if test '' == "${output_configured}"; then
+    warn "No outputs configured as requested; trying defaults for any connected outputs."
     for connected_output in "${connected_outputs_list[@]}"; do
       if configure "${connected_output}"; then
         output_configured='yes'
@@ -91,12 +108,13 @@ function configure() {
   primary="${4}"
 
   if test '' == "${output}"; then
-    fail "Tried to configure unspecified output."
+    warn "Skipping unspecified output."
+    return 1
   fi
 
   if test '' == "${connected_outputs_hash[${output}]}"; then
     warn "Skipping missing or disconnected output:  '${output}'"
-    return 1
+    return 2
   fi
 
   args=( '--output' "${output}" )
