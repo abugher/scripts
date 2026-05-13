@@ -1,28 +1,162 @@
 #!/bin/bash
 
 
-# Source configuration as script.
-# Lazy and potentially dangerous.
-source ~/.config/monitors/config
+function main() {
+  # Strings:
+  unset internal_output
+  unset internal_resolution
+  unset internal_rate
+  # Booleans (set or not):
+  unset internal_primary
+  unset internal_with_external
 
+  # Ordinal array of strings:
+  external_names=()
 
-unset external_attached
-if xrandr | grep -v disconnected | grep -q ^"${external}"; then
-  external_attached=yes
-fi
+  # Associative arrays, indexed by name;
+  for var in \
+    'external_outputs' \
+    'external_resolutions' \
+    'external_rates' \
+    'external_primary' \
+    ;
+  do 
+    unset "${var}"
+    declare -A "${var}"
+  done
 
-if test set = "${external_attached:+set}"; then
-  xrandr --output "${internal}" --off
-  if test 'set' = "${external_resolution:+set}"; then
-    xrandr --output "${external}" --mode "${external_resolution}"
+  # Read configuration file.
+  conf_file_path=~/.config/monitors/config
+  if test -e "${conf_file_path}"; then
+    source "${conf_file_path}"
   else
-    xrandr --output "${external}" --auto
+    warn "No configuration file found."
   fi
-else
-  xrandr --output "${external}" --off
-  if test 'set' = "${internal_resolution:+set}"; then
-    xrandr --output "${internal}" --mode "${internal_resolution}"
+
+  
+  connected_outputs_list=( $(find_connected_outputs) )
+  # Stupid bash-ism to avoid searching the list.
+  declare -A connected_outputs_hash
+  for connected_output in "${connected_outputs_list[@]}"; do
+    connected_outputs_hash["${connected_output}"]='connected'
+  done
+
+  unset output_configured
+  if test 0 -ne "${#external_names[@]}"; then
+    for name in "${external_names[@]}"; do
+      if configure \
+        "${external_outputs[${name}]}" \
+        "${external_resolutions[${name}]}" \
+        "${external_rates[${name}]}" \
+        "${external_primary[${name}]}" \
+        ;
+      then
+        output_configured='yes'
+      fi
+    done
+  fi
+
+  if test '' != "${internal_name}"; then
+    if test '' == "${output_configured}" -o '' != "${internal_with_external}"; then
+      if configure \
+        "${internal_output}" \
+        "${internal_resolution}" \
+        "${internal_rate}" \
+        "${internal_primary}" \
+        ;
+      then
+        output_configured='yes'
+      fi
+    fi
+  fi
+
+  if test '' == "${output_configured}"; then
+    for connected_output in "${connected_outputs_list[@]}"; do
+      if configure "${connected_output}"; then
+        output_configured='yes'
+      fi
+    done
+  fi
+
+  if test '' == "${output_configured}"; then
+    fail "Failed to configure any output."
+  fi
+}
+
+
+function configure() {
+  output="${1}"
+  resolution="${2}"
+  rate="${3}"
+  primary="${4}"
+
+  if test '' == "${output}"; then
+    fail "Tried to configure unspecified output."
+  fi
+
+  if test '' == "${connected_outputs_hash[${output}]}"; then
+    warn "Skipping missing or disconnected output:  '${output}'"
+    return 1
+  fi
+
+  args=( '--output' "${output}" )
+
+  if test '' != "${resolution}"; then
+    args+=( '--mode' "${resolution}" )
   else
-    xrandr --output "${internal}" --auto
+    args+=( '--auto' )
   fi
-fi
+
+  if test '' != "${rate}"; then
+    args+=( '--rate' "${rate}" )
+  fi
+
+  if test '' != "${primary}"; then
+    args+=( '--primary' )
+  fi
+
+  xrandr "${args[@]}"; ret="${?}"
+
+  if test 0 -eq "${ret}"; then
+    output "Configured output:  '${output}'"
+  else
+    warn "Failed to configure output:  '${output}'"
+  fi
+
+  return "${ret}"
+}
+
+
+function find_connected_outputs() {
+  xrandr | awk '/[^ ]+ connected/ {print $1}'
+}
+
+
+
+function output() {
+  printf '%s\n' "${1}"
+}
+
+
+function warn() {
+  output "Warning:  ${1}" >&2
+}
+
+
+function error() {
+  output "Error:  ${1}" >&2
+}
+
+
+function debug() {
+  output "Debug:  ${1}" >&2
+}
+
+
+function fail() {
+  error "${1}"
+  exit "${2:-1}"
+}
+
+
+main "${@}"
