@@ -1,0 +1,6 @@
+#!/bin/bash
+
+input="${1}"
+output="${2}"
+
+ffmpeg -i "${input}" -vf format=yuv420p "${output}"
