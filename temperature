@@ -1,0 +1,16 @@
+#!/bin/bash
+#
+# Format a thermal zone reading as a number of degrees.
+#
+#   temperature <zone>
+#
+# zone must be a number of reasonable size.
+
+
+zone="${1}"
+
+if ! grep -q -E '^[0-9]{1,9}$' <<< "${zone}"; then
+  exit 1
+fi
+
+sed -E 's/^(.*)(...)$/\1.\2/' /sys/class/thermal/thermal_zone"${zone}"/temp
