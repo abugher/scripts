@@ -4,13 +4,55 @@
 #
 #   temperature <zone>
 #
-# zone must be a number of reasonable size.
+# zone must be a number of reasonable size or one of several specific strings.
+#
+# Reading SSD temperature requires sudoers configuration.  This line will
+# enable this script for any user for nvme0n1:
+#
+#       ALL ALL = (root:root) NOPASSWD: /usr/sbin/smartctl -x /dev/nvme0n1
 
 
+# System-specific operation:
+# 
+# Some attempt has been made to separate system-specific configuration from
+# system-agnostic code, but several assumptions are still baked in, including
+# interest in only one storage device and one network device, and that those
+# are an SSD and WiFi card.  Extending the script to handle more devices should
+# be trivial, but requires changes to more than just the configuration
+# variables at the top.
+#
+# Arrays could potentially be used in configuration to handle an arbitrary
+# number of devices and make the rest of the code less system-specific.  That
+# might require splitting an argument like "cpu1" into "cpu" and "1", then
+# looking up the zone from an array.  At the moment, I would rather take an
+# argument like "cpu", so this is not being "fixed" just yet.  
+
+
+# System-specific configuration:
+ssd='/dev/nvme0n1'
+zone_cpu=2
+zone_wifi=3
+
+
+# Argument handling:
 zone="${1}"
 
-if ! grep -q -E '^[0-9]{1,9}$' <<< "${zone}"; then
+if test 'cpu' == "${zone}"; then
+  zone="${zone_cpu}"
+elif test 'wifi' == "${zone}"; then
+  zone="${zone_wifi}"
+fi
+
+
+# Temperature acquisition:
+if test 'ssd' == "${zone}"; then
+  smart_output="$(sudo /usr/sbin/smartctl -x "${ssd}")"; ret="${?}"
+  awk '/^Temperature:/ {print $2}' <<< "${smart_output}"
+  exit "${ret}"
+elif grep -q -E '^[0-9]{1,9}$' <<< "${zone}"; then
+  sed -E 's/^(.*)(...)$/\1.\2/' /sys/class/thermal/thermal_zone"${zone}"/temp; ret="${?}"
+  exit "${ret}"
+else
   exit 1
 fi
 
-sed -E 's/^(.*)(...)$/\1.\2/' /sys/class/thermal/thermal_zone"${zone}"/temp
