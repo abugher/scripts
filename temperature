@@ -1,52 +1,93 @@
 #!/bin/bash
 #
+#       temperature <zone>
+#
 # Format a thermal zone reading as a number of degrees.
 #
-#   temperature <zone>
+# If zone is a number of reasonable size, it is the index number of a thermal
+# zone.
 #
-# zone must be a number of reasonable size or one of several specific strings.
+# If zone is one of the strings "storage", "cpu", or "net", it refers to the
+# first entry in the appropriate configuration array.
 #
-# Reading SSD temperature requires sudoers configuration.  This line will
-# enable this script for any user for nvme0n1:
+# If zone is one of the same strings with a number suffixed ("cpu0", "net2"),
+# it refers to the entry in the appropriate configuration array with that index
+# number.
+#
+# If the CPU temperature is at thermal zone 2, these all do the same thing:
+#
+#       temperature 2
+#       temperature cpu
+#       temperature cpu0
+# 
+#
+# sudoers:
+#
+# Reading storage device temperature requires sudoers configuration.  This line
+# will enable this script for any user for nvme0n1:
 #
 #       ALL ALL = (root:root) NOPASSWD: /usr/sbin/smartctl -x /dev/nvme0n1
 
-
-# System-specific operation:
+# BUGS:  
 # 
-# Some attempt has been made to separate system-specific configuration from
-# system-agnostic code, but several assumptions are still baked in, including
-# interest in only one storage device and one network device, and that those
-# are an SSD and WiFi card.  Extending the script to handle more devices should
-# be trivial, but requires changes to more than just the configuration
-# variables at the top.
+# The variable $zone is overused.
 #
-# Arrays could potentially be used in configuration to handle an arbitrary
-# number of devices and make the rest of the code less system-specific.  That
-# might require splitting an argument like "cpu1" into "cpu" and "1", then
-# looking up the zone from an array.  At the moment, I would rather take an
-# argument like "cpu", so this is not being "fixed" just yet.  
+# Decimal point usage in output is inconsistent.  Trailing zeroes could be be
+# removed from thermal zones, but that could remove precision on a system with
+# better thermometers.  A decimal point and trailing zeroes could be added to
+# storage temperatures, but that would imply more precision than is stated by
+# the device.  (Thermal zones already state false levels of precision, but that
+# doesn't mean I should make the problem worse.)  Maybe an extra argument could
+# be implemented to request a rounded integer, for more consistent output.
 
 
 # System-specific configuration:
-ssd='/dev/nvme0n1'
-zone_cpu=2
-zone_wifi=3
+storage_device=''
+storage_devices=()
+storage_devices[0]='/dev/nvme0n1'
+
+zones_cpu=()
+zones_cpu[0]='2'
+
+zones_net=()
+zones_net[0]='3'
 
 
 # Argument handling:
 zone="${1}"
 
 if test 'cpu' == "${zone}"; then
-  zone="${zone_cpu}"
-elif test 'wifi' == "${zone}"; then
-  zone="${zone_wifi}"
+  zone="${zones_cpu[0]}"
+elif test 'net' == "${zone}"; then
+  zone="${zones_net[0]}"
+elif test 'storage' == "${zone}"; then
+  zone='storage'
+  storage_device="${storage_devices[0]}"
+elif grep -q '^cpu' <<< "${zone}"; then
+  cpu_num="${zone#cpu}"
+  if ! grep -q -E '^[0-9]{1,9}$' <<< "${cpu_num}"; then
+    exit 1
+  fi
+  zone="${zones_cpu[${cpu_num}]}"
+elif grep -q '^net' <<< "${zone}"; then
+  net_num="${zone#net}"
+  if ! grep -q -E '^[0-9]{1,9}$' <<< "${net_num}"; then
+    exit 1
+  fi
+  zone="${zones_net[${net_num}]}"
+elif grep -q '^storage' <<< "${zone}"; then
+  storage_num="${zone#storage}"
+  if ! grep -q -E '^[0-9]{1,9}$' <<< "${storage_num}"; then
+    exit 1
+  fi
+  zone='storage'
+  storage_device="${storage_devices[${storage_num}]}"
 fi
 
 
 # Temperature acquisition:
-if test 'ssd' == "${zone}"; then
-  smart_output="$(sudo /usr/sbin/smartctl -x "${ssd}")"; ret="${?}"
+if test 'storage' == "${zone}"; then
+  smart_output="$(sudo -n /usr/sbin/smartctl -x "${storage_device}")"; ret="${?}"
   awk '/^Temperature:/ {print $2}' <<< "${smart_output}"
   exit "${ret}"
 elif grep -q -E '^[0-9]{1,9}$' <<< "${zone}"; then
