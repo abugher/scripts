@@ -64,10 +64,10 @@ function main() {
   ps1_colors+=( "${ps1_default_color}" )
 
   ps1_parts+=( ':' )
-  ps1_colors+=( "${ps1_default_color}" )
+  ps1_colors+=( "${ps1_splash_color}" )
 
   ps1_parts+=( '$(sed "s#^${HOME}#~#" <<< "${PWD}")' )
-  ps1_colors+=( "${ps1_splash_color}" )
+  ps1_colors+=( "${ps1_default_color}" )
 
   # privilege indicator (# or $)
   ps1_parts+=( "$(
