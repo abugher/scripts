@@ -1,12 +1,134 @@
 #!/bin/bash
+#
+# PS1="$(setPS1)"
+#
+#   Set PS1 to a fairly complex value.  Color will be used if available.
+#
+# setPS1 demo
+#
+#   Demonstrate every color and text decoration code by using the code while
+#   printing the string representing the code.  For example, the code for
+#   underlined cyan text on gray background should be displayed in underlined
+#   cyan on a gray background.  This is intended to be used for developing this
+#   script.
 
-if ! terminal-has-color; then
-  printf '%s\n' '$(printf %0.3d "${?}") \u@\h:$(sed "s#^${HOME}#~#" <<< "${PWD}") $(if test 0 = "${UID}"; then printf "#"; else printf "$"; fi) '
-  exit
-fi
+
+function main() {
+  # Do some work to prepare for color output, even though colorless output
+  # might be required.  This way, each part and its color can be set together,
+  # reducing the chance of accidents while managing those arrays.
+  #
+  # See "colors by name" for the hashes of human readable color names to
+  # machine readable color codes.
+  #
+  # A finer distinction might be appropriate between colors and other forms of
+  # text decoration, but "color codes" control both.
+
+  # This code marks the end of a string fragment affected by a prior color code.
+  ps1_reset="$(ps1_color_code 0)"
+
+  # This color will be used for informational text.
+  if grep -q 'screen' <<< "${TERM}"; then
+    ps1_default_color="$(ps1_color_code "${fg[gray]}" "${mod[underline]}")"
+  else
+    ps1_default_color="$(ps1_color_code "${fg[gray]}" "${mod[italics]}")"
+  fi
+
+  # This color will be used for punctuation separating elements.
+  if test 0 = "${UID}"; then 
+    ps1_splash_color="$(ps1_color_code "${fg[red]}" "${mod[invert]}")"
+  else 
+    ps1_splash_color="$(ps1_color_code "${fg[green]}" "${mod[none]}")"
+  fi
+
+  # ps_parts[0] gets ps1_colors[0], and so on.
+  ps1_parts=()
+  ps1_colors=()
+
+  # return status of last command
+  ps1_parts+=( '$(printf %3d "${?}")' )
+  ps1_colors+=( "$(ps1_color_code "${bg[blue]}")" )
+
+  # space
+  ps1_parts+=( ' ' )
+  ps1_colors+=( "${ps1_default_color}" )
+
+  # user@host:pwd
+  ps1_parts+=( '\u' )
+  ps1_colors+=( "${ps1_default_color}" )
+
+  ps1_parts+=( '@' )
+  ps1_colors+=( "${ps1_splash_color}" )
+
+  ps1_parts+=( '\h' )
+  ps1_colors+=( "${ps1_default_color}" )
+
+  ps1_parts+=( ':' )
+  ps1_colors+=( "${ps1_default_color}" )
+
+  ps1_parts+=( '$(sed "s#^${HOME}#~#" <<< "${PWD}")' )
+  ps1_colors+=( "${ps1_splash_color}" )
+
+  # privilege indicator (# or $)
+  ps1_parts+=( "$(
+    if test 0 = "${UID}"; then 
+      printf '#'
+    else 
+      printf '$'
+    fi
+  )" )
+  ps1_colors+=( "${ps1_splash_color}" )
+
+  # space
+  ps1_parts+=( ' ' )
+  ps1_colors+=( "${ps1_default_color}" )
+
+  # Report obvious misconfiguration.
+  if ! test "${#ps1_colors[@]}" == "${#ps1_parts[@]}"; then
+    printf 'ERROR:  %s\n' "setPS1 failed.  Number of colors does not match number of parts."
+    exit 1
+  fi
+
+  # Handle colorless output.
+  if ! terminal_has_color; then
+    unset ps1_colors
+    unset ps1_reset
+  fi
+
+  # Build the output string.
+  ps1_value=''
+  for i in "${!ps1_parts[@]}"; do
+    ps1_value+="${ps1_colors[${i}]}${ps1_parts[${i}]}${ps1_reset}"
+  done
+
+  # Output the string.
+  printf '%s' "${ps1_value}"
+}
+
+
+function terminal_has_color() {
+  # Uncomment this temporarily to test colorless output:
+  #
+  # return 1
+
+  if grep -qE 'color|xterm|screen' <<< "${TERM}"; then
+    return 0
+  else
+    colors="$(tput colors 2>/dev/null)"
+    if ! grep -q '[0-9]' <<< "${colors}"; then
+      colors=0
+    fi
+    if test "${colors}" -ge 8; then
+      return 0
+    fi
+  fi
+
+  return 1
+}
 
 
 function ps1_color_code() {
+  # Format a color code for use in PS1.
   color="${1}"
   modifier="${2:-0}"
   if test "${3:+set}" = 'set'; then
@@ -19,6 +141,7 @@ function ps1_color_code() {
 
 
 function color_code() {
+  # Format a color code for use by printf.
   color="${1}"
   modifier="${2:-0}"
   if test "${3:+set}" = 'set'; then
@@ -30,38 +153,9 @@ function color_code() {
 }
 
 
-function main() {
-  if grep -q 'screen' <<< "${TERM}"; then
-    ps1_default_color="$(ps1_color_code "${fg[gray]}" "${mod[underline]}")"
-  else
-    ps1_default_color="$(ps1_color_code "${fg[gray]}" "${mod[italics]}")"
-  fi
-
-  if test 0 = "${UID}"; then 
-    ps1_splash_color="$(ps1_color_code "${fg[red]}" "${mod[invert]}")"
-  else 
-    ps1_splash_color="$(ps1_color_code "${fg[green]}" "${mod[none]}")"
-  fi
-
-  ps1_ret="$(ps1_color_code "${bg[blue]}")"'$(printf %3d "${?}")'"${ps1_reset}"
-  ps1_user="${ps1_default_color}\\u${ps1_reset}"
-  ps1_at="${ps1_splash_color}@${ps1_reset}"
-  ps1_host="${ps1_default_color}\\h${ps1_reset}"
-  ps1_colon="${ps1_splash_color}:${ps1_reset}"
-  ps1_pwd="${ps1_default_color}"'$(sed "s#^${HOME}#~#" <<< "${PWD}")'"${ps1_reset}"
-  ps1_sigil="${ps1_splash_color}$(
-    if test 0 = "${UID}"; then 
-      printf '#'
-    else 
-      printf '$'
-    fi
-  )${ps1_reset}"
-
-  printf '%s\n' "${ps1_ret} ${ps1_user}${ps1_at}${ps1_host}${ps1_colon}${ps1_pwd}${ps1_sigil} "
-}
-
-
 function demo() {
+  reset="$(color_code 0)"
+
   for b in $(sort <<< "${bg[@]}"); do
     for f in $(sort <<< "${fg[@]}"); do
       for m in $(sort <<< "${mod[@]}"); do
@@ -72,6 +166,8 @@ function demo() {
   done
 }
 
+
+# colors by name
 
 declare -A fg
 fg[black]=30
@@ -104,10 +200,6 @@ mod[blink]=6
 mod[invert]=7
 mod[invisible]=8
 mod[strikethrough]=9
-
-
-ps1_reset="$(ps1_color_code 0)"
-reset="$(color_code 0)"
 
 
 if test "${1}" = 'demo'; then
