@@ -14,6 +14,11 @@
 
 
 function main() {
+  if test 'demo' == "${1}"; then
+    demo
+    return 0
+  fi
+
   # Do some work to prepare for color output, even though colorless output
   # might be required.  This way, each part and its color can be set together,
   # reducing the chance of accidents while managing those arrays.
@@ -48,6 +53,24 @@ function main() {
   # return status of last command
   ps1_parts+=( '$(printf %3d "${?}")' )
   ps1_colors+=( "$(ps1_color_code "${bg[blue]}")" )
+
+  # space
+  ps1_parts+=( ' ' )
+  ps1_colors+=( "${ps1_default_color}" )
+
+  # git branch
+  #
+  # I believe more complexity would be required to make the output of
+  # parentheses conditional.  It might be best to show them anyway, to make it
+  # obvious when not in a git repo at all.
+  ps1_parts+=( '(' )
+  ps1_colors+=( "${ps1_splash_color}" )
+
+  ps1_parts+=( '$(git branch --show-current 2>/dev/null)' )
+  ps1_colors+=( "${ps1_default_color}" )
+
+  ps1_parts+=( ')' )
+  ps1_colors+=( "${ps1_splash_color}" )
 
   # space
   ps1_parts+=( ' ' )
@@ -104,6 +127,7 @@ function main() {
   # Output the string.
   printf '%s' "${ps1_value}"
 }
+
 
 
 function terminal_has_color() {
@@ -202,8 +226,5 @@ mod[invisible]=8
 mod[strikethrough]=9
 
 
-if test "${1}" = 'demo'; then
-  demo
-else
-  main
-fi
+main "${@}"
+
